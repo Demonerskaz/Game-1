@@ -265,11 +265,11 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && S.m
 const THEMES = [
   { id: 'clean', name: 'КАК БЫЛО', lcd: '#c3c8b4', ink: '#151a12', inkAlpha: 1, ghost: 0.09,
     shadow: 0, tauOn: 0, tauOff: 0, grain: 0, glare: 0, vignette: 0, piezo: false },
-  { id: 'stn', name: 'СТАРЫЙ LCD', lcd: '#b4bba0', ink: '#1e2a2b', inkAlpha: 0.86, ghost: 0.075,
+  { id: 'stn', name: 'СТАРЫЙ LCD', lcd: '#b4bba0', ink: '#1e2a2b', inkAlpha: 0.95, ghost: 0.045,
     shadow: 0.13, tauOn: 25, tauOff: 55, grain: 0.35, glare: 0.9, vignette: 0.85, piezo: true },
-  { id: 'olive', name: 'ЖЁЛТО-ЗЕЛЁНЫЙ', lcd: '#a9ae6c', ink: '#262d16', inkAlpha: 0.84, ghost: 0.08,
+  { id: 'olive', name: 'ЖЁЛТО-ЗЕЛЁНЫЙ', lcd: '#a9ae6c', ink: '#262d16', inkAlpha: 0.94, ghost: 0.05,
     shadow: 0.12, tauOn: 28, tauOff: 65, grain: 0.4, glare: 0.8, vignette: 0.9, piezo: true },
-  { id: 'grey', name: 'ХОЛОДНЫЙ СЕРЫЙ', lcd: '#b3b9b8', ink: '#1b2231', inkAlpha: 0.88, ghost: 0.07,
+  { id: 'grey', name: 'ХОЛОДНЫЙ СЕРЫЙ', lcd: '#b3b9b8', ink: '#1b2231', inkAlpha: 0.95, ghost: 0.042,
     shadow: 0.14, tauOn: 22, tauOff: 50, grain: 0.3, glare: 1, vignette: 0.8, piezo: true },
 ];
 const FX = {
