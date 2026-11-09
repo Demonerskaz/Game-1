@@ -15,12 +15,6 @@
   <div class="bezel">
     <div class="bezel-top">
       <span class="led" id="led"></span>
-      <div class="fx">
-        <button type="button" id="fx-theme" aria-label="Сменить схему экрана">ЭКРАН <b id="fx-theme-n">1/4</b></button>
-        <button type="button" id="fx-battery" aria-label="Режим севших батареек">БАТ</button>
-        <button type="button" id="fx-tilt" aria-label="Эффект наклона экрана">НАКЛОН</button>
-        <label class="contrast" for="fx-contrast" title="Контрастность"><span aria-hidden="true">◐</span><input type="range" id="fx-contrast" min="0" max="100" aria-label="Контрастность"></label>
-      </div>
       <span class="brand">BRICK&nbsp;LCD</span>
     </div>
     <div class="screen"><canvas id="lcd"></canvas></div>
@@ -31,6 +25,8 @@
     <button class="sbtn" data-key="sound"><i></i><span>ЗВУК</span></button>
     <button class="sbtn" data-key="start"><i></i><span>СТАРТ/ПАУЗА</span></button>
     <button class="sbtn" data-key="reset"><i></i><span>СБРОС</span></button>
+    <button class="sbtn fxb" type="button" id="fx-theme" aria-label="Сменить схему экрана"><i></i><span>ЭКРАН</span></button>
+    <button class="sbtn fxb" type="button" id="fx-tilt" aria-label="Эффект наклона экрана"><i></i><span>НАКЛОН</span></button>
   </div>
 
   <div class="controls">

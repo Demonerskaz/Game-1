@@ -276,8 +276,8 @@ const THEMES = [
 ];
 const FX = {
   theme: Math.max(0, THEMES.findIndex(t => t.id === store.get('theme', 'stn'))),
-  contrast: store.get('contrast', 0.5),   // 0..1, колёсико контрастности
-  battery: store.get('battery', false),   // режим «садятся батарейки»
+  contrast: 0.5,     // контрастность (ползунок пока убран)
+  battery: false,    // режим «садятся батарейки» (кнопка пока убрана)
 };
 const theme = () => THEMES[FX.theme];
 
@@ -570,8 +570,6 @@ function applyTheme(announce) {
   screenEl.style.setProperty('--grain', th.grain);
   screenEl.style.setProperty('--vignette', th.vignette);
   screenEl.classList.toggle('battery', FX.battery);
-  document.getElementById('fx-battery').classList.toggle('on', FX.battery);
-  document.getElementById('fx-theme-n').textContent = `${FX.theme + 1}/${THEMES.length}`;
   ghostDirty = true;
   if (announce) showCaption(announce);
 }
@@ -581,11 +579,12 @@ document.getElementById('fx-theme').addEventListener('click', () => {
   applyTheme(theme().name);
   buzz(8); Sound.init(); Sound.beep(1600, 0.02, 0, 0.04);
 });
-document.getElementById('fx-battery').addEventListener('click', () => {
-  FX.battery = !FX.battery; store.set('battery', FX.battery);
-  applyTheme(FX.battery ? 'БАТАРЕЙКИ САДЯТСЯ' : 'НОВЫЕ БАТАРЕЙКИ');
-  buzz(8); Sound.init(); Sound.beep(900, 0.04, 0, 0.05);
-});
+// нажатие круглых кнопок ЭКРАН и НАКЛОН — та же анимация, что у остальных
+for (const el of document.querySelectorAll('.fxb')) {
+  el.addEventListener('pointerdown', () => el.classList.add('pressed'));
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(ev, () => el.classList.remove('pressed'));
+}
+
 const tiltBtn = document.getElementById('fx-tilt');
 function onOrient(e) {
   if (e.beta == null || e.gamma == null) return;
@@ -704,15 +703,6 @@ function drawPresses(m, th, dt) {
   pc.globalCompositeOperation = 'source-over';
   m.globalAlpha = 0.28 * k; m.drawImage(pressCv, 0, 0);
   m.globalAlpha = 1;
-}
-
-const contrastEl = document.getElementById('fx-contrast');
-contrastEl.value = Math.round(FX.contrast * 100);
-contrastEl.addEventListener('input', () => {
-  FX.contrast = contrastEl.value / 100; store.set('contrast', FX.contrast);
-});
-for (const el of document.querySelectorAll('.fx button, .fx input')) {
-  el.addEventListener('pointerdown', e => e.stopPropagation());
 }
 
 /* ---------- Игровой цикл ---------- */
