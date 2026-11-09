@@ -146,7 +146,7 @@ function tryMove(dx, dy) {
 function tryRotate() {
   const p = S.piece; if (!p) return;
   const m = rotate(p.m);
-  for (const dx of [0, -1, 1, -2, 2]) {
+  for (const dx of [0, -1, 1, -2, 2, -3, 3]) {
     for (const dy of [0, -1]) {
       if (!collides(m, p.x + dx, p.y + dy)) { p.m = m; p.x += dx; p.y += dy; Sound.rotate(); return; }
     }
