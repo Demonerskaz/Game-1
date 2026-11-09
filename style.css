@@ -72,11 +72,5 @@ html,body{margin:0;height:100%;background:var(--body2);overflow:hidden;
 .screen canvas{position:relative;z-index:1}
 @media (prefers-reduced-motion:reduce){.screen{transition:none}}
 
-/* блик стекла — отдельный слой, чтобы сдвигаться при наклоне телефона */
-.glare{position:absolute;inset:-25%;z-index:2;pointer-events:none;
-  transform:translate(var(--tx,0px),var(--ty,0px));
-  background:
-    linear-gradient(118deg,transparent 28%,rgba(255,255,255,calc(.16*var(--glare,0))) 37%,transparent 46%),
-    linear-gradient(118deg,transparent 52%,rgba(255,255,255,calc(.07*var(--glare,0))) 56%,transparent 60%)}
 .screen::after{z-index:3}
 @media (max-width:420px){.brand{display:none}}
