@@ -617,28 +617,28 @@ tiltBtn.addEventListener('click', () => {
 });
 
 /* ---------- Нажатие пальцем на стекло ----------
- * Подушечка пальца давит на стекло овалом ~10×13 мм. Под ней слой кристаллов сжимается:
- * пятно контакта резко темнеет (негорящие пиксели проступают почти как горящие),
- * выдавленные кристаллы дают светлое кольцо вокруг и слабый тёмный ореол дальше.
- * После отпускания пятно бледнеет, а кольцо расходится. Ведёте пальцем — остаётся мазок.
+ * Давление сжимает слой жидких кристаллов: вокруг пальца расползается мягкое тёмное облако
+ * с лёгким синеватым оттенком, без резкой границы, больше самого пальца (видно по краям подушечки).
+ * Негорящие пиксели в нём плавно проступают. После отпускания облако расплывается и тает.
+ * Затемнение и проступание пикселей рисуются по одной общей маске — без наложений.
  */
 const presses = [];
 const MM = 6;                 // CSS-пикселей в миллиметре на экране iPhone (~153 px на дюйм)
+const MAX_PRESSES = 90;
 function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
 function pressAt(e) {
   const r = canvas.getBoundingClientRect(), k = canvas.width / r.width;
   return [(e.clientX - r.left) * k, (e.clientY - r.top) * k, k];
 }
 function newPress(id, x, y, k, s = 0, trail = false) {
-  // форма контакта: овал вдоль пальца (палец обычно снизу), чуть повёрнут, с неровным краем
-  const lobes = Array.from({ length: 5 }, (_, i) => {
-    const a = i / 5 * Math.PI * 2 + Math.random() * 0.8;
-    return { a, d: 0.18 + Math.random() * 0.22, sc: 0.45 + Math.random() * 0.25 };
+  const lobes = Array.from({ length: 4 }, () => {
+    const a = Math.random() * Math.PI * 2;
+    return { ox: Math.cos(a) * (0.2 + Math.random() * 0.2), oy: Math.sin(a) * (0.2 + Math.random() * 0.2), sc: 0.55 + Math.random() * 0.25 };
   });
-  presses.push({ id, x, y, s, held: true, trail,
-    rx: 5 * MM * k, ry: 6.5 * MM * k,            // полуоси ~ 10×13 мм
-    grow: trail ? 1 : 0.75,                      // свежее касание дорастает до полного размера
-    rot: (Math.random() - 0.5) * 0.5, spread: 0, lobes });
+  presses.push({ id, x, y, s, held: !trail, trail, k,
+    r: (trail ? 6.5 : 8.5) * MM * k,            // облако ~17 мм, шире подушечки пальца
+    grow: trail ? 1 : 0.6, flow: 0, rot: Math.random() * Math.PI, sq: 0.8 + Math.random() * 0.15, lobes });
+  if (presses.length > MAX_PRESSES) presses.splice(0, presses.length - MAX_PRESSES);
 }
 screenEl.addEventListener('pointerdown', e => {
   if (!theme().press) return;
@@ -648,61 +648,62 @@ screenEl.addEventListener('pointerdown', e => {
 screenEl.addEventListener('pointermove', e => {
   const p = presses.find(q => q.id === e.pointerId && q.held); if (!p) return;
   const [x, y, k] = pressAt(e);
-  if (Math.hypot(x - p.x, y - p.y) > 2.2 * MM * k) {   // частые отпечатки — сплошной мазок
-    p.held = false; newPress(e.pointerId, x, y, k, Math.max(p.s, 0.6), true);
-  }
+  const dx = x - p.x, dy = y - p.y, dist = Math.hypot(dx, dy), step = 1.5 * MM * k;
+  if (dist < step) return;
+  // плотная цепочка отпечатков вдоль пути — сплошной мягкий шлейф
+  const n = Math.min(12, Math.floor(dist / step));
+  for (let i = 0; i < n; i++) newPress(e.pointerId, p.x + dx * (i / n), p.y + dy * (i / n), k, p.s * 0.75, true);
+  p.x = x; p.y = y;          // само облако под пальцем едет вместе с ним
 });
 const pressUp = e => presses.forEach(p => { if (p.id === e.pointerId) p.held = false; });
 screenEl.addEventListener('pointerup', pressUp);
 screenEl.addEventListener('pointercancel', pressUp);
 
-// неровное пятно: основной овал + несколько смещённых «долек»
-function blob(c, p, scale, stops, lobes = true) {
-  const parts = [{ ox: 0, oy: 0, sc: 1 }, ...(lobes ? p.lobes.map(l => ({ ox: Math.cos(l.a) * l.d, oy: Math.sin(l.a) * l.d, sc: l.sc })) : [])];
+function cloud(c, p, a) {
+  const R = p.r * p.grow * (1 + p.flow);
+  const parts = [{ ox: 0, oy: 0, sc: 1 }, ...p.lobes];
   for (const q of parts) {
-    c.save(); c.translate(p.x, p.y); c.rotate(p.rot); c.scale(p.rx * scale * p.grow, p.ry * scale * p.grow);
-    c.translate(q.ox, q.oy); c.scale(q.sc, q.sc);
-    const g = c.createRadialGradient(0, 0, 0, 0, 0, 1);
-    for (const [o, col] of stops) g.addColorStop(o, col);
+    c.save(); c.translate(p.x, p.y); c.rotate(p.rot); c.scale(R, R * p.sq); c.translate(q.ox, q.oy); c.scale(q.sc, q.sc);
+    const g = c.createRadialGradient(0, 0, 0, 0, 0, 1);   // мягкий, почти гауссов спад
+    const w = q.sc === 1 ? a : a * 0.55;
+    g.addColorStop(0, `rgba(0,0,0,${w})`); g.addColorStop(0.3, `rgba(0,0,0,${w * 0.85})`);
+    g.addColorStop(0.6, `rgba(0,0,0,${w * 0.4})`); g.addColorStop(0.82, `rgba(0,0,0,${w * 0.12})`); g.addColorStop(1, 'rgba(0,0,0,0)');
     c.fillStyle = g; c.beginPath(); c.arc(0, 0, 1, 0, Math.PI * 2); c.fill();
     c.restore();
   }
 }
 
 function drawPresses(m, th, dt) {
-  const fade = Math.exp(-dt / 600), fadeTrail = Math.exp(-dt / 380), rise = 1 - Math.exp(-dt / 90);
+  const rise = 1 - Math.exp(-dt / 260);
   for (let i = presses.length - 1; i >= 0; i--) {
     const p = presses[i];
     if (p.held) { p.s += (1 - p.s) * rise; p.grow += (1 - p.grow) * rise; }
-    else { p.s *= p.trail ? fadeTrail : fade; p.spread += dt / 1000; }
+    else {
+      p.s *= Math.exp(-dt / (p.trail ? 450 : 750));
+      p.flow += (0.25 - p.flow) * (1 - Math.exp(-dt / 600));   // расплывается
+    }
     if (!p.held && p.s < 0.01) presses.splice(i, 1);
   }
   if (!presses.length) return;
   const W2 = canvas.width, H2 = canvas.height, k = th.press;
 
-  // 1) маска пятна контакта (чёткий край, неровная форма)
   maskCtx.setTransform(1, 0, 0, 1, 0, 0); maskCtx.clearRect(0, 0, W2, H2);
-  for (const p of presses) {
-    const a = p.s;
-    blob(maskCtx, p, 1, [[0, `rgba(0,0,0,${a})`], [0.72, `rgba(0,0,0,${a * 0.95})`], [0.9, `rgba(0,0,0,${a * 0.4})`], [1, 'rgba(0,0,0,0)']]);
-  }
-  // 2) негорящие пиксели под пальцем проступают почти как горящие
-  pressCtx.setTransform(1, 0, 0, 1, 0, 0);
-  pressCtx.globalCompositeOperation = 'source-over'; pressCtx.clearRect(0, 0, W2, H2);
-  pressCtx.drawImage(ghostCv, 0, 0);
-  pressCtx.globalCompositeOperation = 'destination-in'; pressCtx.drawImage(maskCv, 0, 0);
-  pressCtx.globalCompositeOperation = 'source-over';
-  m.globalAlpha = 0.8 * k; m.drawImage(pressCv, 0, 0);
-  m.globalAlpha = 1;
+  for (const p of presses) cloud(maskCtx, p, p.s * (p.trail ? 0.45 : 1));
 
-  // 3) само стекло: тёмное пятно, светлое кольцо выдавленных кристаллов, слабый ореол дальше
-  const [r, g, b] = hexRgb(th.ink), ink = a => `rgba(${r},${g},${b},${a})`, lite = a => `rgba(250,252,235,${a})`;
-  for (const p of presses) {
-    const a = p.s * k, out = 1 + p.spread * 0.5;   // после отпускания кольцо расходится
-    blob(m, p, 1, [[0, ink(0.3 * a)], [0.7, ink(0.26 * a)], [0.92, ink(0.08 * a)], [1, ink(0)]], false);
-    blob(m, p, 1.38 * out, [[0, lite(0)], [0.66, lite(0)], [0.76, lite(0.2 * a)], [0.86, lite(0.08 * a)], [1, lite(0)]], false);
-    blob(m, p, 1.9 * out, [[0, ink(0)], [0.68, ink(0)], [0.8, ink(0.07 * a)], [1, ink(0)]], false);
-  }
+  const pc = pressCtx; pc.setTransform(1, 0, 0, 1, 0, 0);
+  // 1) проступают негорящие пиксели
+  pc.globalCompositeOperation = 'source-over'; pc.clearRect(0, 0, W2, H2);
+  pc.drawImage(ghostCv, 0, 0);
+  pc.globalCompositeOperation = 'destination-in'; pc.drawImage(maskCv, 0, 0);
+  m.globalAlpha = 0.6 * k; m.drawImage(pressCv, 0, 0);
+  // 2) тёмное облако на самом стекле, с лёгким уходом в синеву
+  const [r, g, b] = hexRgb(th.ink);
+  pc.globalCompositeOperation = 'source-over'; pc.clearRect(0, 0, W2, H2);
+  pc.fillStyle = `rgb(${r},${g + 4},${Math.min(255, b + 34)})`; pc.fillRect(0, 0, W2, H2);
+  pc.globalCompositeOperation = 'destination-in'; pc.drawImage(maskCv, 0, 0);
+  pc.globalCompositeOperation = 'source-over';
+  m.globalAlpha = 0.28 * k; m.drawImage(pressCv, 0, 0);
+  m.globalAlpha = 1;
 }
 
 const contrastEl = document.getElementById('fx-contrast');
