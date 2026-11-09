@@ -614,11 +614,41 @@ document.getElementById('fx-theme').addEventListener('click', () => {
   applyTheme(theme().name);
   buzz(8); Sound.init(); Sound.beep(1600, 0.02, 0, 0.04);
 });
-// нажатие круглых кнопок ЭКРАН и КОРПУС — та же анимация, что у остальных
+// нажатие круглых кнопок ЭКРАН, КОРПУС и НАКЛОН — та же анимация, что у остальных
 for (const el of document.querySelectorAll('.fxb')) {
   el.addEventListener('pointerdown', () => el.classList.add('pressed'));
   for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(ev, () => el.classList.remove('pressed'));
 }
+
+const tiltBtn = document.getElementById('fx-tilt');
+function onOrient(e) {
+  if (e.beta == null || e.gamma == null) return;
+  if (TILT.beta0 == null) { TILT.beta0 = e.beta; TILT.gamma0 = e.gamma; }   // текущее положение = нейтраль
+  TILT.got = true;
+  TILT.tb = clamp(e.beta - TILT.beta0, -60, 60);
+  TILT.tg = clamp(e.gamma - TILT.gamma0, -60, 60);
+}
+function setTilt(on, msg) {
+  TILT.on = on; TILT.b = TILT.g = TILT.tb = TILT.tg = 0; TILT.beta0 = TILT.gamma0 = null; TILT.got = false;
+  if (on) addEventListener('deviceorientation', onOrient); else removeEventListener('deviceorientation', onOrient);
+  tiltBtn.classList.toggle('on', on);
+  if (msg) showCaption(msg, on ? 1600 : 2600);
+}
+tiltBtn.addEventListener('click', () => {
+  buzz(8); Sound.init(); Sound.beep(1300, 0.02, 0, 0.04);
+  if (TILT.on) return setTilt(false, 'НАКЛОН ВЫКЛ');
+  const DOE = window.DeviceOrientationEvent;
+  if (!DOE) return setTilt(false, 'НЕТ ДАТЧИКА');
+  const start = () => {
+    setTilt(true, 'ДЕРЖИТЕ РОВНО');
+    // если за 1,5 с не пришло ни одного показания — датчик здесь заблокирован
+    setTimeout(() => { if (TILT.on && !TILT.got) setTilt(false, 'НАКЛОН НЕДОСТУПЕН'); }, 1500);
+  };
+  if (typeof DOE.requestPermission === 'function') {   // iPhone: спросить разрешение по нажатию
+    DOE.requestPermission().then(r => r === 'granted' ? start() : setTilt(false, 'НЕТ РАЗРЕШЕНИЯ'))
+      .catch(() => setTilt(false, 'НАКЛОН НЕДОСТУПЕН'));
+  } else start();
+});
 
 /* ---------- Нажатие пальцем на стекло ----------
  * Давление сжимает слой жидких кристаллов: вокруг пальца расползается мягкое тёмное облако
@@ -720,6 +750,7 @@ function togglePower() {
     Sound.seq([880, 1320], 0.06);
   } else {
     if (picker.open) closePicker();
+    if (TILT.on) setTilt(false);
     Sound.beep(440, 0.06);
   }
 }

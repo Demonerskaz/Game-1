@@ -49,12 +49,12 @@ html,body{background:var(--body2)}
 
 /* ---- низ: 51–100% (координаты кнопок — доли ширины/высоты с фото) ---- */
 .bottom{position:absolute;left:0;right:0;top:56%;bottom:0}
-.bottom .sbtn{position:absolute;width:calc(13 * var(--u));margin-left:calc(-6.5 * var(--u));gap:3px}
+.bottom .sbtn{position:absolute;width:calc(12.6 * var(--u));margin-left:calc(-6.3 * var(--u));gap:3px}
 .bottom .sbtn i{width:15px;height:15px;outline:0;background:radial-gradient(circle at 40% 35%,#fff0a0 0 10%,var(--key) 40%,var(--key-d) 100%);
   box-shadow:0 2px 0 var(--key-d),0 0 0 2px var(--lo)}
 .bottom .sbtn span{font:700 8.5px/1 Arial,system-ui,sans-serif;color:var(--print);text-shadow:none;letter-spacing:.02em}
 /* маленькие кнопки — ровный ряд */
-.k1{left:13%;top:15%}.k2{left:27.5%;top:15%}.k3{left:42%;top:15%}.k4{left:56.5%;top:15%}.k5{left:71%;top:15%}.k6{left:85.5%;top:15%}
+.k1{left:10%;top:15%}.k2{left:23.3%;top:15%}.k3{left:36.6%;top:15%}.k4{left:50%;top:15%}.k5{left:63.3%;top:15%}.k6{left:76.6%;top:15%}.k7{left:90%;top:15%}
 
 .bottom .dpad{position:absolute;left:5%;top:31%;width:32%;aspect-ratio:1}
 .bottom .dpad::before{display:none}
@@ -106,3 +106,17 @@ html,body{overscroll-behavior:none;position:fixed;inset:0;width:100%}
 /* увеличенная зона нажатия у ROTATE и маленьких кнопок */
 .bottom .big .btn::after{content:"";position:absolute;inset:-22%;border-radius:50%}
 .bottom .sbtn{padding:6px 0}
+
+/* ===== Кнопки видны строго в лоб =====
+ * Никакой «боковины» снизу: купол с бликом по центру, вокруг — ровная тёмная щель в корпусе
+ * одинаковой ширины со всех сторон. Нажатие — кнопка уходит вглубь (чуть меньше и темнее), а не вниз. */
+.bottom .btn{background:radial-gradient(circle at 50% 46%,#ffe98a 0 5%,var(--key) 34%,var(--key) 72%,var(--key-d) 100%);
+  box-shadow:0 0 0 2.5px var(--lo),0 0 0 4px #00000022,0 0 7px #00000066,inset 0 0 5px #00000038}
+.bottom .btn.pressed{transform:scale(.93);filter:brightness(.9);
+  box-shadow:0 0 0 3.5px var(--lo),0 0 0 5px #00000022,0 0 3px #00000066,inset 0 0 8px #00000055}
+.bottom .sbtn i,.sbtn#fx-theme i,.sbtn#skin-open i,.sbtn#fx-tilt i{
+  background:radial-gradient(circle at 50% 46%,#ffe98a 0 8%,var(--key) 45%,var(--key-d) 100%);
+  box-shadow:0 0 0 2px var(--lo),0 0 4px #00000066,inset 0 0 3px #00000033}
+.bottom .sbtn.pressed i{transform:scale(.88);filter:brightness(.88);box-shadow:0 0 0 3px var(--lo),inset 0 0 5px #00000055}
+.sbtn#fx-tilt.on i{background:radial-gradient(circle at 50% 46%,#ffffff 0 15%,#fff27a 50%,var(--key-d) 100%);
+  box-shadow:0 0 0 2px var(--lo),0 0 9px #fff27a}
