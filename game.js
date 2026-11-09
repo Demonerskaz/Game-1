@@ -262,16 +262,17 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && S.m
  *  grain, glare, vignette — зерно подложки, блик стекла, затемнение к краям (0..1)
  *  piezo    — «жестяной» звук пьезопищалки вместо чистого тона
  *  tilt     — сила эффекта угла обзора при наклоне телефона (0 — нет)
+ *  press    — следы от нажатия пальцем на стекло (0 — нет)
  */
 const THEMES = [
   { id: 'clean', name: 'КАК БЫЛО', lcd: '#c3c8b4', ink: '#151a12', inkAlpha: 1, ghost: 0.09,
-    shadow: 0, tauOn: 0, tauOff: 0, grain: 0, glare: 0, vignette: 0, piezo: false, tilt: 0 },
+    shadow: 0, tauOn: 0, tauOff: 0, grain: 0, glare: 0, vignette: 0, piezo: false, tilt: 0, press: 0 },
   { id: 'stn', name: 'СТАРЫЙ LCD', lcd: '#b4bba0', ink: '#1e2a2b', inkAlpha: 0.95, ghost: 0.045,
-    shadow: 0.13, tauOn: 25, tauOff: 55, grain: 0.35, glare: 0.9, vignette: 0.85, piezo: true, tilt: 1 },
+    shadow: 0.13, tauOn: 25, tauOff: 55, grain: 0.35, glare: 0.9, vignette: 0.85, piezo: true, tilt: 1, press: 1 },
   { id: 'olive', name: 'ЖЁЛТО-ЗЕЛЁНЫЙ', lcd: '#a9ae6c', ink: '#262d16', inkAlpha: 0.94, ghost: 0.05,
-    shadow: 0.12, tauOn: 28, tauOff: 65, grain: 0.4, glare: 0.8, vignette: 0.9, piezo: true, tilt: 1 },
+    shadow: 0.12, tauOn: 28, tauOff: 65, grain: 0.4, glare: 0.8, vignette: 0.9, piezo: true, tilt: 1, press: 1 },
   { id: 'grey', name: 'ХОЛОДНЫЙ СЕРЫЙ', lcd: '#b3b9b8', ink: '#1b2231', inkAlpha: 0.95, ghost: 0.042,
-    shadow: 0.14, tauOn: 22, tauOff: 50, grain: 0.3, glare: 1, vignette: 0.8, piezo: true, tilt: 1 },
+    shadow: 0.14, tauOn: 22, tauOff: 50, grain: 0.3, glare: 1, vignette: 0.8, piezo: true, tilt: 1, press: 1 },
 ];
 const FX = {
   theme: Math.max(0, THEMES.findIndex(t => t.id === store.get('theme', 'stn'))),
@@ -291,6 +292,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 // с инерцией — отсюда шлейф, как у медленной STN-матрицы.
 const layer = () => { const c = document.createElement('canvas'); return [c, c.getContext('2d')]; };
 const [inkCv, inkCtx] = layer(), [ghostCv, ghostCtx] = layer();
+const [pressCv, pressCtx] = layer(), [maskCv, maskCtx] = layer();
 let ctx = inkCtx, PASS = 'ink', SCALE = 1, ghostDirty = true;
 const LEVEL = [];            // яркость элементов по порядку отрисовки
 let penIdx = 0, kOn = 1, kOff = 1;
@@ -304,7 +306,7 @@ function resize() {
   canvas.style.height = H * scale + 'px';
   const pw = Math.round(W * scale * dpr), ph = Math.round(H * scale * dpr);
   SCALE = scale * dpr;
-  for (const cv of [canvas, inkCv, ghostCv]) { cv.width = pw; cv.height = ph; }
+  for (const cv of [canvas, inkCv, ghostCv, pressCv, maskCv]) { cv.width = pw; cv.height = ph; }
   for (const c of [inkCtx, ghostCtx]) c.setTransform(SCALE, 0, 0, SCALE, 0, 0);
   ghostDirty = true;
 }
@@ -516,6 +518,7 @@ function draw(t, dt) {
   m.setTransform(1, 0, 0, 1, 0, 0);
   m.clearRect(0, 0, canvas.width, canvas.height);
   m.globalAlpha = lv.ghost; m.drawImage(ghostCv, 0, 0);
+  if (th.press && presses.length) drawPresses(m, th, dt);
   if (th.shadow) {   // тень пикселей на отражающей подложке: одна, близко и бледно — без ряби
     const o = 0.06 * C * SCALE, k = TILT.on ? th.tilt : 0;
     const ox = Math.round(o * clamp(1 + k * TILT.g / 25, -0.5, 3));
@@ -611,6 +614,75 @@ tiltBtn.addEventListener('click', () => {
       .catch(() => setTilt(false, 'НАКЛОН НЕДОСТУПЕН'));
   } else start();
 });
+
+/* ---------- Нажатие пальцем на стекло ----------
+ * Под пальцем жидкие кристаллы сдавливаются: негорящие пиксели рядом темнеют, вокруг —
+ * тёмное размытое пятно со светлым кольцом по краю; после отпускания всё медленно расходится.
+ */
+const presses = [];          // {id, x, y, r, s, held, rot, sq}  — координаты в пикселях холста
+function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+function pressAt(e) {
+  const r = canvas.getBoundingClientRect(), k = canvas.width / r.width;
+  return [(e.clientX - r.left) * k, (e.clientY - r.top) * k];
+}
+function newPress(id, x, y, s = 0) {
+  presses.push({ id, x, y, r: 0.7 * C * SCALE, s, held: true, rot: Math.random() * Math.PI, sq: 0.75 + Math.random() * 0.2 });
+}
+screenEl.addEventListener('pointerdown', e => {
+  if (!theme().press) return;
+  e.preventDefault(); screenEl.setPointerCapture?.(e.pointerId);
+  const [x, y] = pressAt(e); newPress(e.pointerId, x, y);
+});
+screenEl.addEventListener('pointermove', e => {
+  const p = presses.find(q => q.id === e.pointerId && q.held); if (!p) return;
+  const [x, y] = pressAt(e);
+  // ведёте пальцем — старое пятно остаётся расходиться, новое продолжает след
+  if (Math.hypot(x - p.x, y - p.y) > 0.35 * C * SCALE) { p.held = false; newPress(e.pointerId, x, y, p.s * 0.85); }
+});
+const pressUp = e => presses.forEach(p => { if (p.id === e.pointerId) p.held = false; });
+screenEl.addEventListener('pointerup', pressUp);
+screenEl.addEventListener('pointercancel', pressUp);
+
+function drawPresses(m, th, dt) {
+  const grow = 1 - Math.exp(-dt / 220), fade = Math.exp(-dt / 520), unit = C * SCALE;
+  for (let i = presses.length - 1; i >= 0; i--) {
+    const p = presses[i];
+    if (p.held) { p.s += (1 - p.s) * grow; p.r += (1.5 * unit - p.r) * grow * 0.5; }
+    else { p.s *= fade; p.r += 0.6 * unit * dt / 1000; }   // расходится и бледнеет
+    if (!p.held && p.s < 0.01) presses.splice(i, 1);
+  }
+  if (!presses.length) return;
+  const W2 = canvas.width, H2 = canvas.height, k = th.press;
+  // 1) маска пятен
+  maskCtx.setTransform(1, 0, 0, 1, 0, 0); maskCtx.clearRect(0, 0, W2, H2);
+  for (const p of presses) {
+    const g = maskCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+    g.addColorStop(0, `rgba(0,0,0,${p.s})`); g.addColorStop(0.55, `rgba(0,0,0,${p.s * 0.6})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+    maskCtx.fillStyle = g; maskCtx.fillRect(0, 0, W2, H2);
+  }
+  // 2) негорящие пиксели под пальцем проступают темнее
+  pressCtx.setTransform(1, 0, 0, 1, 0, 0);
+  pressCtx.globalCompositeOperation = 'source-over'; pressCtx.clearRect(0, 0, W2, H2);
+  pressCtx.drawImage(ghostCv, 0, 0);
+  pressCtx.globalCompositeOperation = 'destination-in'; pressCtx.drawImage(maskCv, 0, 0);
+  pressCtx.globalCompositeOperation = 'source-over';
+  m.globalAlpha = 0.42 * k; m.drawImage(pressCv, 0, 0);
+  // 3) само пятно на стекле: тёмная середина и светлое кольцо по краю, чуть неровной формы
+  const [r, g, b] = hexRgb(th.ink);
+  for (const p of presses) {
+    m.save(); m.translate(p.x, p.y); m.rotate(p.rot); m.scale(1, p.sq);
+    const d = m.createRadialGradient(0, 0, 0, 0, 0, p.r);
+    d.addColorStop(0, `rgba(${r},${g},${b},${0.13 * p.s * k})`);
+    d.addColorStop(0.6, `rgba(${r},${g},${b},${0.06 * p.s * k})`);
+    d.addColorStop(0.82, 'rgba(255,255,240,0)');
+    d.addColorStop(0.92, `rgba(255,255,240,${0.12 * p.s * k})`);
+    d.addColorStop(1, 'rgba(255,255,240,0)');
+    m.globalAlpha = 1; m.fillStyle = d;
+    m.beginPath(); m.arc(0, 0, p.r, 0, Math.PI * 2); m.fill();
+    m.restore();
+  }
+  m.globalAlpha = 1;
+}
 
 const contrastEl = document.getElementById('fx-contrast');
 contrastEl.value = Math.round(FX.contrast * 100);
