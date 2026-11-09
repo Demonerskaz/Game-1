@@ -68,9 +68,16 @@ html,body{margin:0;height:100%;background:var(--body2);overflow:hidden;
 .screen::before{background-image:var(--grain-img);background-size:160px 160px;opacity:var(--grain,0);mix-blend-mode:multiply}
 .screen::after{z-index:2;
   background:
-    linear-gradient(118deg,transparent 18%,rgba(255,255,255,calc(.16*var(--glare,0))) 30%,transparent 44%),
-    linear-gradient(118deg,transparent 52%,rgba(255,255,255,calc(.07*var(--glare,0))) 58%,transparent 64%),
     radial-gradient(ellipse at 50% 45%,transparent 55%,rgba(20,24,16,calc(.28*var(--vignette,0))) 100%)}
 .screen canvas{position:relative;z-index:1}
 .screen.battery{filter:saturate(.85) brightness(1.04)}
 @media (prefers-reduced-motion:reduce){.screen{transition:none}}
+
+/* блик стекла — отдельный слой, чтобы сдвигаться при наклоне телефона */
+.glare{position:absolute;inset:-25%;z-index:2;pointer-events:none;
+  transform:translate(var(--tx,0px),var(--ty,0px));
+  background:
+    linear-gradient(118deg,transparent 28%,rgba(255,255,255,calc(.16*var(--glare,0))) 37%,transparent 46%),
+    linear-gradient(118deg,transparent 52%,rgba(255,255,255,calc(.07*var(--glare,0))) 56%,transparent 60%)}
+.screen::after{z-index:3}
+@media (max-width:420px){.brand{display:none}}

@@ -261,16 +261,17 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && S.m
  *  tauOn/tauOff — инерция пикселя при зажигании/гашении, мс (0 — мгновенно, шлейф от падающих фигур)
  *  grain, glare, vignette — зерно подложки, блик стекла, затемнение к краям (0..1)
  *  piezo    — «жестяной» звук пьезопищалки вместо чистого тона
+ *  tilt     — сила эффекта угла обзора при наклоне телефона (0 — нет)
  */
 const THEMES = [
   { id: 'clean', name: 'КАК БЫЛО', lcd: '#c3c8b4', ink: '#151a12', inkAlpha: 1, ghost: 0.09,
-    shadow: 0, tauOn: 0, tauOff: 0, grain: 0, glare: 0, vignette: 0, piezo: false },
+    shadow: 0, tauOn: 0, tauOff: 0, grain: 0, glare: 0, vignette: 0, piezo: false, tilt: 0 },
   { id: 'stn', name: 'СТАРЫЙ LCD', lcd: '#b4bba0', ink: '#1e2a2b', inkAlpha: 0.95, ghost: 0.045,
-    shadow: 0.13, tauOn: 25, tauOff: 55, grain: 0.35, glare: 0.9, vignette: 0.85, piezo: true },
+    shadow: 0.13, tauOn: 25, tauOff: 55, grain: 0.35, glare: 0.9, vignette: 0.85, piezo: true, tilt: 1 },
   { id: 'olive', name: 'ЖЁЛТО-ЗЕЛЁНЫЙ', lcd: '#a9ae6c', ink: '#262d16', inkAlpha: 0.94, ghost: 0.05,
-    shadow: 0.12, tauOn: 28, tauOff: 65, grain: 0.4, glare: 0.8, vignette: 0.9, piezo: true },
+    shadow: 0.12, tauOn: 28, tauOff: 65, grain: 0.4, glare: 0.8, vignette: 0.9, piezo: true, tilt: 1 },
   { id: 'grey', name: 'ХОЛОДНЫЙ СЕРЫЙ', lcd: '#b3b9b8', ink: '#1b2231', inkAlpha: 0.95, ghost: 0.042,
-    shadow: 0.14, tauOn: 22, tauOff: 50, grain: 0.3, glare: 1, vignette: 0.8, piezo: true },
+    shadow: 0.14, tauOn: 22, tauOff: 50, grain: 0.3, glare: 1, vignette: 0.8, piezo: true, tilt: 1 },
 ];
 const FX = {
   theme: Math.max(0, THEMES.findIndex(t => t.id === store.get('theme', 'stn'))),
@@ -278,6 +279,11 @@ const FX = {
   battery: store.get('battery', false),   // режим «садятся батарейки»
 };
 const theme = () => THEMES[FX.theme];
+
+// Угол обзора: настоящий STN-экран при наклоне то выцветает, то темнеет, а блик и тени смещаются.
+// Работает только там, где браузер даёт датчик ориентации (на iPhone — по разрешению, через HTTPS).
+const TILT = { on: false, got: false, beta0: null, gamma0: null, tb: 0, tg: 0, b: 0, g: 0 };
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 /* ---------- Отрисовка ---------- */
 // Сцена рисуется в два слоя: «призраки» (всё, что может гореть) и «чернила» (что горит сейчас).
@@ -474,6 +480,14 @@ function levels(t) {
   const th = theme(), c = FX.contrast;
   let ink = th.inkAlpha * (0.4 + 0.6 * Math.min(1, c * 2));
   let ghost = th.ghost * Math.pow(0.3 + 1.4 * c, 2);
+  const k = TILT.on ? th.tilt : 0;
+  if (k) {
+    const v = clamp(TILT.b / 30, -1.5, 1.5);   // вперёд/назад
+    const h = Math.min(1, Math.abs(TILT.g) / 40); // вбок
+    if (v < 0) { ink *= 1 - 0.55 * k * Math.min(1, -v); ghost *= Math.max(0.1, 1 + 0.8 * v * k); }
+    else { ghost *= 1 + 2.4 * v * k; }
+    ink *= 1 - 0.25 * k * h;
+  }
   if (FX.battery) {
     ink *= 0.5 + 0.04 * Math.sin(t / 900) + 0.03 * Math.sin(t / 137);   // бледно и слегка «гуляет»
     ghost *= 0.45;
@@ -503,8 +517,10 @@ function draw(t, dt) {
   m.clearRect(0, 0, canvas.width, canvas.height);
   m.globalAlpha = lv.ghost; m.drawImage(ghostCv, 0, 0);
   if (th.shadow) {   // тень пикселей на отражающей подложке: одна, близко и бледно — без ряби
-    const o = Math.max(1, Math.round(0.06 * C * SCALE));
-    m.globalAlpha = th.shadow * lv.ink; m.drawImage(inkCv, o, o);
+    const o = 0.06 * C * SCALE, k = TILT.on ? th.tilt : 0;
+    const ox = Math.round(o * clamp(1 + k * TILT.g / 25, -0.5, 3));
+    const oy = Math.round(o * clamp(1 - k * TILT.b / 25, -0.5, 3));
+    m.globalAlpha = th.shadow * lv.ink; m.drawImage(inkCv, ox || 1, oy || 1);
   }
   m.globalAlpha = lv.ink; m.drawImage(inkCv, 0, 0);
   m.globalAlpha = 1;
@@ -538,6 +554,11 @@ const captionEl = document.querySelector('.bezel-caption');
 })();
 
 let captionTimer;
+function showCaption(text, ms = 1600) {
+  captionEl.textContent = text;
+  clearTimeout(captionTimer);
+  captionTimer = setTimeout(() => { captionEl.textContent = 'СТРОЙКА'; }, ms);
+}
 function applyTheme(announce) {
   const th = theme();
   screenEl.style.setProperty('--lcd', th.lcd);
@@ -548,11 +569,7 @@ function applyTheme(announce) {
   document.getElementById('fx-battery').classList.toggle('on', FX.battery);
   document.getElementById('fx-theme-n').textContent = `${FX.theme + 1}/${THEMES.length}`;
   ghostDirty = true;
-  if (announce) {
-    captionEl.textContent = announce;
-    clearTimeout(captionTimer);
-    captionTimer = setTimeout(() => { captionEl.textContent = 'СТРОЙКА'; }, 1600);
-  }
+  if (announce) showCaption(announce);
 }
 document.getElementById('fx-theme').addEventListener('click', () => {
   FX.theme = (FX.theme + 1) % THEMES.length;
@@ -565,6 +582,36 @@ document.getElementById('fx-battery').addEventListener('click', () => {
   applyTheme(FX.battery ? 'БАТАРЕЙКИ САДЯТСЯ' : 'НОВЫЕ БАТАРЕЙКИ');
   buzz(8); Sound.init(); Sound.beep(900, 0.04, 0, 0.05);
 });
+const tiltBtn = document.getElementById('fx-tilt');
+function onOrient(e) {
+  if (e.beta == null || e.gamma == null) return;
+  if (TILT.beta0 == null) { TILT.beta0 = e.beta; TILT.gamma0 = e.gamma; }   // текущее положение = нейтраль
+  TILT.got = true;
+  TILT.tb = clamp(e.beta - TILT.beta0, -60, 60);
+  TILT.tg = clamp(e.gamma - TILT.gamma0, -60, 60);
+}
+function setTilt(on, msg) {
+  TILT.on = on; TILT.b = TILT.g = TILT.tb = TILT.tg = 0; TILT.beta0 = TILT.gamma0 = null; TILT.got = false;
+  if (on) addEventListener('deviceorientation', onOrient); else removeEventListener('deviceorientation', onOrient);
+  tiltBtn.classList.toggle('on', on);
+  if (msg) showCaption(msg, on ? 1600 : 2600);
+}
+tiltBtn.addEventListener('click', () => {
+  buzz(8); Sound.init(); Sound.beep(1300, 0.02, 0, 0.04);
+  if (TILT.on) return setTilt(false, 'НАКЛОН ВЫКЛ');
+  const DOE = window.DeviceOrientationEvent;
+  if (!DOE) return setTilt(false, 'НЕТ ДАТЧИКА');
+  const start = () => {
+    setTilt(true, 'ДЕРЖИТЕ РОВНО');
+    // если за 1,5 с не пришло ни одного показания — датчик здесь заблокирован
+    setTimeout(() => { if (TILT.on && !TILT.got) setTilt(false, 'НАКЛОН НЕДОСТУПЕН'); }, 1500);
+  };
+  if (typeof DOE.requestPermission === 'function') {   // iPhone: спросить разрешение по нажатию
+    DOE.requestPermission().then(r => r === 'granted' ? start() : setTilt(false, 'НЕТ РАЗРЕШЕНИЯ'))
+      .catch(() => setTilt(false, 'НАКЛОН НЕДОСТУПЕН'));
+  } else start();
+});
+
 const contrastEl = document.getElementById('fx-contrast');
 contrastEl.value = Math.round(FX.contrast * 100);
 contrastEl.addEventListener('input', () => {
@@ -587,6 +634,13 @@ function frame(now) {
   if (S.mode === 'clear' && S.anim > 0.48) finishClear();
   led.classList.toggle('on', S.mode !== 'pause');
   led.classList.toggle('weak', FX.battery);
+  if (TILT.on) {
+    const k = 1 - Math.exp(-dt / 120);
+    TILT.b += (TILT.tb - TILT.b) * k; TILT.g += (TILT.tg - TILT.g) * k;
+  }
+  const gk = TILT.on ? theme().tilt : 0;   // блик «едет» по стеклу при наклоне
+  screenEl.style.setProperty('--tx', (gk * clamp(TILT.g, -40, 40) * 1.2).toFixed(1) + 'px');
+  screenEl.style.setProperty('--ty', (gk * clamp(-TILT.b, -40, 40) * 1.2).toFixed(1) + 'px');
   draw(now, dt);
   requestAnimationFrame(frame);
 }
