@@ -6,6 +6,8 @@ const C = 24;                       // логический размер кле�
 const W = 17.6 * C, H = 21 * C;     // логический размер экрана
 const INK = '#151a12';
 const GHOST = 'rgba(21,26,18,0.09)';
+const LINES_PER_SPEED = 10;  // линий до следующей скорости
+const MAX_SPEED = 15;        // потолок разгона в игре (в меню старт 1–10)
 
 const canvas = document.getElementById('lcd');
 const ctx = canvas.getContext('2d');
@@ -121,7 +123,8 @@ function finishClear() {
   while (S.board.length < ROWS) S.board.unshift(Array(COLS).fill(0));
   S.score += [0, 100, 300, 700, 1500][n] * (1 + (S.speed - 1) * 0.1) | 0;
   S.lines += n;
-  const sp = Math.min(10, S.startSpeed + Math.floor(S.lines / 20));
+  // Как в домашних версиях 90-х: +1 к скорости каждые 10 линий, независимо от стартового выбора
+  const sp = Math.min(MAX_SPEED, S.startSpeed + Math.floor(S.lines / LINES_PER_SPEED));
   if (sp > S.speed) { S.speed = sp; Sound.seq([1046, 1318], 0.06); }
   if (S.score > S.hi) { S.hi = S.score; store.set('hi', S.hi); }
   S.clearRows = [];
