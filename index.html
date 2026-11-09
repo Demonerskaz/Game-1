@@ -13,49 +13,51 @@
 </head>
 <body>
 <div class="device">
+  <div class="stage">
   <!-- верх корпуса: экран в рамке, «кирпичики» по бокам -->
-  <section class="top">
-    <div class="frame">
-      <div class="col" id="cl"></div>
-      <div class="ring">
-        <button type="button" class="super" id="skin-open" aria-label="Выбрать корпус">SUPER</button>
-        <div class="bevel"><div class="screen"><canvas id="lcd"></canvas></div></div>
+    <section class="top">
+      <div class="frame">
+        <div class="col" id="cl"></div>
+        <div class="ring">
+          <button type="button" class="super" id="skin-open" aria-label="Выбрать корпус">SUPER</button>
+          <div class="bevel"><div class="screen"><canvas id="lcd"></canvas></div></div>
+        </div>
+        <div class="col" id="cr"></div>
       </div>
-      <div class="col" id="cr"></div>
+      <span class="led" id="led" hidden></span>
+      <div class="bezel-caption"></div>
+    </section>
+  
+    <!-- литой перегиб корпуса -->
+    <div class="fold"></div>
+  
+    <!-- низ корпуса: кнопки -->
+    <section class="bottom">
+      <button class="sbtn k1" data-key="power"><i></i><span>ON/OFF</span></button>
+      <button class="sbtn k2" data-key="start"><i></i><span>S/P</span></button>
+      <button class="sbtn k3" data-key="sound"><i></i><span>SOUND</span></button>
+      <button class="sbtn k4" data-key="reset"><i></i><span>RESET</span></button>
+      <button class="sbtn k5 fxb" type="button" id="fx-theme" aria-label="Сменить схему экрана"><i></i><span>ЭКРАН</span></button>
+      <button class="sbtn k6 fxb" type="button" id="fx-tilt" aria-label="Эффект наклона экрана"><i></i><span>НАКЛОН</span></button>
+      <div class="dpad">
+        <button class="btn up" data-key="up" aria-label="Вверх"></button>
+        <button class="btn left" data-key="left" aria-label="Влево"></button>
+        <button class="btn right" data-key="right" aria-label="Вправо"></button>
+        <button class="btn down" data-key="down" aria-label="Вниз"></button>
+        <span class="plus" aria-hidden="true">+</span>
+        <span class="dl l">LEFT</span><span class="dl r">RIGHT</span><span class="dl d">DOWN</span>
+      </div>
+      <div class="big"><button class="btn rotate" data-key="rotate" aria-label="Поворот"></button><span class="lbl">ROTATE</span></div>
+      <div class="title" aria-hidden="true"><div class="r1">GAME</div><div class="r2">BRICK<small>9999 in 1</small></div></div>
+    </section>
+  
+    <!-- выбор корпуса: телефон перекрашивается сразу -->
+    <div class="skin-picker" id="skin-picker" hidden>
+      <button type="button" class="sp-arrow" id="skin-prev" aria-label="Предыдущий корпус">◀</button>
+      <div class="sp-info"><b id="skin-name"></b><small id="skin-count"></small></div>
+      <button type="button" class="sp-arrow" id="skin-next" aria-label="Следующий корпус">▶</button>
+      <button type="button" class="sp-done" id="skin-done">ГОТОВО</button>
     </div>
-    <span class="led" id="led" hidden></span>
-    <div class="bezel-caption"></div>
-  </section>
-
-  <!-- литой перегиб корпуса -->
-  <div class="fold"></div>
-
-  <!-- низ корпуса: кнопки -->
-  <section class="bottom">
-    <button class="sbtn k1" data-key="power"><i></i><span>ON/OFF</span></button>
-    <button class="sbtn k2" data-key="start"><i></i><span>S/P</span></button>
-    <button class="sbtn k3" data-key="sound"><i></i><span>SOUND</span></button>
-    <button class="sbtn k4" data-key="reset"><i></i><span>RESET</span></button>
-    <button class="sbtn k5 fxb" type="button" id="fx-theme" aria-label="Сменить схему экрана"><i></i><span>ЭКРАН</span></button>
-    <button class="sbtn k6 fxb" type="button" id="fx-tilt" aria-label="Эффект наклона экрана"><i></i><span>НАКЛОН</span></button>
-    <div class="dpad">
-      <button class="btn up" data-key="up" aria-label="Вверх"></button>
-      <button class="btn left" data-key="left" aria-label="Влево"></button>
-      <button class="btn right" data-key="right" aria-label="Вправо"></button>
-      <button class="btn down" data-key="down" aria-label="Вниз"></button>
-      <span class="plus" aria-hidden="true">+</span>
-      <span class="dl l">LEFT</span><span class="dl r">RIGHT</span><span class="dl d">DOWN</span>
-    </div>
-    <div class="big"><button class="btn rotate" data-key="rotate" aria-label="Поворот"></button><span class="lbl">ROTATE</span></div>
-    <div class="title" aria-hidden="true"><div class="r1">GAME</div><div class="r2">BRICK<small>9999 in 1</small></div></div>
-  </section>
-
-  <!-- выбор корпуса: телефон перекрашивается сразу -->
-  <div class="skin-picker" id="skin-picker" hidden>
-    <button type="button" class="sp-arrow" id="skin-prev" aria-label="Предыдущий корпус">◀</button>
-    <div class="sp-info"><b id="skin-name"></b><small id="skin-count"></small></div>
-    <button type="button" class="sp-arrow" id="skin-next" aria-label="Следующий корпус">▶</button>
-    <button type="button" class="sp-done" id="skin-done">ГОТОВО</button>
   </div>
 </div>
 <script src="game.js"></script>

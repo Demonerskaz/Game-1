@@ -15,20 +15,28 @@ html,body{background:var(--body2)}
 :root[data-skin=clear] .device::after{content:"";position:absolute;inset:0;opacity:.45;pointer-events:none;
   background:repeating-linear-gradient(90deg,transparent 0 46px,#ffffff1c 46px 48px),repeating-linear-gradient(0deg,transparent 0 62px,#ffffff16 62px 64px)}
 
-/* ---- верх: 0–41% ---- */
+/* ---- «чертёж» консоли: 100u × 217u (пропорции 440×956), целиком влезает в любой экран ----
+ * --u = 1% ширины, но не больше, чем позволяет высота (встроенные браузеры, короткие экраны).
+ * Корпус (фон) всё равно заливает весь экран до краёв. */
+.device{--avail:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+  --u:min(1vw, calc(var(--avail) / 217))}
+.stage{position:absolute;left:50%;width:calc(100 * var(--u));height:calc(217 * var(--u));transform:translateX(-50%);
+  top:calc(env(safe-area-inset-top,0px) + (var(--avail) - 217 * var(--u)) / 2)}
+
+/* ---- верх ---- */
 .top{position:absolute;left:0;right:0;top:0;height:46%;display:flex;flex-direction:column;align-items:center;
-  padding:0 4vw}
+  padding:0 calc(4 * var(--u))}
 /* отступ от края корпуса до экрана одинаковый сверху и сбоку: --gap = поле «кирпичиков» + зазор до линии */
-.frame{position:relative;width:100%;display:flex;align-items:stretch;justify-content:center;gap:2.5vw;
-  padding-top:max(var(--edge), env(safe-area-inset-top))}
-:root{--col:9vw}
-.frame{--edge:calc(4vw + var(--col) + 2.5vw)}
-.col{width:var(--col);display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(21,minmax(0,1fr));gap:2px;padding:1vw 0}
+.frame{position:relative;width:100%;display:flex;align-items:stretch;justify-content:center;gap:calc(2.5 * var(--u));
+  padding-top:var(--edge)}
+.device{--col:calc(9 * var(--u))}
+.frame{--edge:calc(calc(4 * var(--u)) + var(--col) + calc(2.5 * var(--u)))}
+.col{width:var(--col);display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(21,minmax(0,1fr));gap:2px;padding:calc(1 * var(--u)) 0}
 .col i{border:1.6px solid var(--print);border-radius:1px;height:100%;width:auto;aspect-ratio:1;justify-self:center;min-height:0;box-sizing:border-box;
   background:radial-gradient(var(--print) 0 20%,transparent 23%)}
 .col i.off{border-color:transparent;background:none}
 /* белая линия — вокруг самого экрана, SUPER разрывает её сверху */
-.ring{position:relative;flex:1;border:1.5px solid var(--print);border-radius:2px;padding:3vw}
+.ring{position:relative;flex:1;border:1.5px solid var(--print);border-radius:2px;padding:calc(3 * var(--u))}
 .super{position:absolute;top:-8px;left:50%;transform:translateX(-50%);padding:0 8px;background:var(--body);
   font:700 12px/16px Arial,system-ui,sans-serif;letter-spacing:.12em;color:var(--print)}
 /* окно экрана — в пропорции картинки игры (0,84), без пустого стекла по бокам */
@@ -37,13 +45,13 @@ html,body{background:var(--body2)}
 .bevel .screen{flex:1;min-height:0;border-radius:0;padding:2px;box-shadow:inset 0 3px 8px #00000077}
 .top .bezel-caption{font-size:9px;color:var(--print);opacity:.7;min-height:12px;padding-top:4px}
 
-/* ---- перегиб: 41–51% ---- */
-.fold{position:absolute;left:0;right:0;top:46%;height:10%;
+/* ---- перегиб (тянется на всю ширину экрана) ---- */
+.fold{position:absolute;left:calc(50% - 50vw);right:calc(50% - 50vw);top:46%;height:10%;
   background:linear-gradient(180deg,transparent 0%,var(--lo) 18%,transparent 42%,var(--hi) 62%,transparent 100%)}
 
 /* ---- низ: 51–100% (координаты кнопок — доли ширины/высоты с фото) ---- */
 .bottom{position:absolute;left:0;right:0;top:56%;bottom:0}
-.bottom .sbtn{position:absolute;width:52px;margin-left:-26px;gap:3px}
+.bottom .sbtn{position:absolute;width:calc(13 * var(--u));margin-left:calc(-6.5 * var(--u));gap:3px}
 .bottom .sbtn i{width:15px;height:15px;outline:0;background:radial-gradient(circle at 40% 35%,#fff0a0 0 10%,var(--key) 40%,var(--key-d) 100%);
   box-shadow:0 2px 0 var(--key-d),0 0 0 2px var(--lo)}
 .bottom .sbtn span{font:700 8.5px/1 Arial,system-ui,sans-serif;color:var(--print);text-shadow:none;letter-spacing:.02em}
@@ -66,10 +74,10 @@ html,body{background:var(--body2)}
 .bottom .big .btn{position:relative;width:100%;aspect-ratio:1}
 .big .lbl{position:static}
 
-.title{position:absolute;left:69%;top:75%;transform:translate(-50%,-50%) rotate(-55deg);pointer-events:none;white-space:nowrap;
-  font:700 clamp(27px,8vw,37px)/.95 "Arial Rounded MT Bold","Arial",sans-serif;color:var(--title-fill);-webkit-text-stroke:1.4px var(--print);letter-spacing:.02em}
+.title{position:absolute;left:69%;top:73.5%;transform:translate(-50%,-50%) rotate(-55deg);pointer-events:none;white-space:nowrap;
+  font:700 calc(8.4 * var(--u))/.95 "Arial Rounded MT Bold","Arial",sans-serif;color:var(--title-fill);-webkit-text-stroke:1.4px var(--print);letter-spacing:.02em}
 .title .r1{padding-left:1.15em}
-.title small{font:400 clamp(13px,3.8vw,17px)/1 Arial,sans-serif;-webkit-text-stroke:0;color:var(--print);margin-left:.5em;vertical-align:.1em}
+.title small{font:400 calc(3.8 * var(--u))/1 Arial,sans-serif;-webkit-text-stroke:0;color:var(--print);margin-left:.5em;vertical-align:.1em}
 /* ЭКРАН и НАКЛОН — такие же жёлтые */
 .sbtn#fx-theme i,.sbtn#fx-tilt i{background:radial-gradient(circle at 40% 35%,#fff0a0 0 10%,var(--key) 40%,var(--key-d) 100%);box-shadow:0 2px 0 var(--key-d),0 0 0 2px var(--lo)}
 .sbtn#fx-tilt.on i{background:#fff27a;box-shadow:0 0 8px #fff27a,0 0 0 2px var(--lo)}
@@ -79,7 +87,7 @@ button.super{border:0;cursor:pointer}
 button.super:focus-visible{outline:2px solid var(--key);outline-offset:2px}
 
 /* панель выбора корпуса — поверх перегиба */
-.skin-picker{position:absolute;left:4vw;right:4vw;top:47%;z-index:10;display:grid;
+.skin-picker{position:absolute;left:4%;right:4%;top:47%;z-index:10;display:grid;
   grid-template-columns:52px 1fr 52px;grid-template-rows:auto auto;gap:8px;align-items:center;
   padding:10px;border-radius:14px;background:#000000b8;color:#fff;box-shadow:0 6px 24px #0008;
   backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
