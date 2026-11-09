@@ -1,0 +1,100 @@
+/* ===== Корпус в стиле карманных Brick Game 90-х =====
+ * Пропорции сняты с фото: экран в рамке сверху, литой перегиб, кнопки снизу.
+ * Новый корпус: блок :root[data-skin=...] с цветами + строка в SKINS в game.js. */
+:root{--body:#1c1c1d;--body2:#121213;--print:#e9e9e6;--key:#f4c21f;--key-d:#a07c08;--bevel:#050505;--hi:#ffffff26;--lo:#000000b3;
+  --title-fill:transparent}
+:root[data-skin=cream]{--body:#e9e4d3;--body2:#d9d3bf;--print:#2a2a28;--bevel:#cfc8b2;--hi:#ffffffaa;--lo:#00000038;--title-fill:#2a2a28}
+:root[data-skin=red]{--body:#c6342b;--body2:#a3241d;--print:#fff1e8;--bevel:#3a0a07;--hi:#ffc0b240;--lo:#4a0b08aa}
+:root[data-skin=blue]{--body:#2a5fb4;--body2:#1d4a90;--print:#f0f5ff;--bevel:#0b1f44;--hi:#b8d2ff40;--lo:#0a1d42aa}
+:root[data-skin=yellow]{--body:#f3c93a;--body2:#deac1c;--print:#221b06;--key:#d23a2c;--key-d:#7d1d16;--bevel:#221b06;--hi:#fff4c288;--lo:#7a5c0877;--title-fill:#221b06}
+:root[data-skin=clear]{--body:#5f9b90;--body2:#457f74;--print:#f2fffb;--bevel:#10302a;--hi:#e6fff944;--lo:#12332d99}
+
+html,body{background:var(--body2)}
+.device{position:relative;max-width:none;height:100dvh;padding:0;gap:0;display:block;color:var(--print);
+  background:linear-gradient(180deg,var(--body),var(--body2));box-shadow:inset 0 0 0 1.5px var(--hi),inset 0 0 30px #00000055}
+:root[data-skin=clear] .device::after{content:"";position:absolute;inset:0;opacity:.45;pointer-events:none;
+  background:repeating-linear-gradient(90deg,transparent 0 46px,#ffffff1c 46px 48px),repeating-linear-gradient(0deg,transparent 0 62px,#ffffff16 62px 64px)}
+
+/* ---- верх: 0–41% ---- */
+.top{position:absolute;left:0;right:0;top:0;height:46%;display:flex;flex-direction:column;align-items:center;
+  padding:0 4vw}
+/* отступ от края корпуса до экрана одинаковый сверху и сбоку: --gap = поле «кирпичиков» + зазор до линии */
+.frame{position:relative;width:100%;display:flex;align-items:stretch;justify-content:center;gap:2.5vw;
+  padding-top:max(var(--edge), env(safe-area-inset-top))}
+:root{--col:9vw}
+.frame{--edge:calc(4vw + var(--col) + 2.5vw)}
+.col{width:var(--col);display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(21,minmax(0,1fr));gap:2px;padding:1vw 0}
+.col i{border:1.6px solid var(--print);border-radius:1px;height:100%;width:auto;aspect-ratio:1;justify-self:center;min-height:0;box-sizing:border-box;
+  background:radial-gradient(var(--print) 0 20%,transparent 23%)}
+.col i.off{border-color:transparent;background:none}
+/* белая линия — вокруг самого экрана, SUPER разрывает её сверху */
+.ring{position:relative;flex:1;border:1.5px solid var(--print);border-radius:2px;padding:3vw}
+.super{position:absolute;top:-8px;left:50%;transform:translateX(-50%);padding:0 8px;background:var(--body);
+  font:700 12px/16px Arial,system-ui,sans-serif;letter-spacing:.12em;color:var(--print)}
+/* окно экрана — в пропорции картинки игры (0,84), без пустого стекла по бокам */
+.bevel{position:relative;z-index:1;width:100%;aspect-ratio:.86;border:solid var(--bevel);border-width:11px 12px 13px;
+  box-shadow:0 0 0 2px #00000066,inset 0 0 0 1px #ffffff10;display:flex;background:var(--bevel)}
+.bevel .screen{flex:1;min-height:0;border-radius:0;padding:2px;box-shadow:inset 0 3px 8px #00000077}
+.top .bezel-caption{font-size:9px;color:var(--print);opacity:.7;min-height:12px;padding-top:4px}
+
+/* ---- перегиб: 41–51% ---- */
+.fold{position:absolute;left:0;right:0;top:46%;height:10%;
+  background:linear-gradient(180deg,transparent 0%,var(--lo) 18%,transparent 42%,var(--hi) 62%,transparent 100%)}
+
+/* ---- низ: 51–100% (координаты кнопок — доли ширины/высоты с фото) ---- */
+.bottom{position:absolute;left:0;right:0;top:56%;bottom:0}
+.bottom .sbtn{position:absolute;width:52px;margin-left:-26px;gap:3px}
+.bottom .sbtn i{width:15px;height:15px;outline:0;background:radial-gradient(circle at 40% 35%,#fff0a0 0 10%,var(--key) 40%,var(--key-d) 100%);
+  box-shadow:0 2px 0 var(--key-d),0 0 0 2px var(--lo)}
+.bottom .sbtn span{font:700 8.5px/1 Arial,system-ui,sans-serif;color:var(--print);text-shadow:none;letter-spacing:.02em}
+.sbtn#fx-tilt.on i{background:#fff27a;box-shadow:0 0 8px #fff27a,0 0 0 2px var(--lo)}
+/* маленькие кнопки — ровный ряд */
+.k1{left:13%;top:15%}.k2{left:27.5%;top:15%}.k3{left:42%;top:15%}.k4{left:56.5%;top:15%}.k5{left:71%;top:15%}.k6{left:85.5%;top:15%}
+
+.bottom .dpad{position:absolute;left:14%;top:31%;width:32%;aspect-ratio:1}
+.bottom .dpad::before{display:none}
+.bottom .btn{background:radial-gradient(circle at 40% 34%,#fff0a0 0 8%,var(--key) 34%,var(--key) 76%,var(--key-d) 100%);outline:0;
+  box-shadow:0 4px 0 var(--key-d),0 5px 8px #0008,0 0 0 2.5px var(--lo)}
+.bottom .btn.pressed{box-shadow:0 0 0 var(--key-d),0 2px 4px #0008,0 0 0 2.5px var(--lo)}
+.bottom .dpad .btn{width:27%;height:27%}
+.bottom .dpad .up{left:36.5%;top:3%}.bottom .dpad .down{left:36.5%;bottom:3%}
+.bottom .dpad .left{left:3%;top:36.5%}.bottom .dpad .right{right:3%;top:36.5%}
+.plus{position:absolute;left:50%;top:50%;transform:translate(-50%,-54%);font:300 22px/1 Arial,sans-serif;color:var(--print)}
+.dl,.big .lbl{position:absolute;font:700 8.5px/1 Arial,system-ui,sans-serif;color:var(--print);text-shadow:none;letter-spacing:.02em}
+.dl.l{left:2%;top:70%}.dl.r{right:-6%;top:68%}.dl.d{left:50%;bottom:-8%;transform:translateX(-50%)}
+.bottom .big{position:absolute;left:69%;top:29%;width:15%;display:flex;flex-direction:column;align-items:center;gap:6px}
+.bottom .big .btn{position:relative;width:100%;aspect-ratio:1}
+.big .lbl{position:static}
+
+.title{position:absolute;left:69%;top:75%;transform:translate(-50%,-50%) rotate(-55deg);pointer-events:none;white-space:nowrap;
+  font:700 clamp(27px,8vw,37px)/.95 "Arial Rounded MT Bold","Arial",sans-serif;color:var(--title-fill);-webkit-text-stroke:1.4px var(--print);letter-spacing:.02em}
+.title .r1{padding-left:1.15em}
+.title small{font:400 clamp(13px,3.8vw,17px)/1 Arial,sans-serif;-webkit-text-stroke:0;color:var(--print);margin-left:.5em;vertical-align:.1em}
+/* ЭКРАН и НАКЛОН — такие же жёлтые */
+.sbtn#fx-theme i,.sbtn#fx-tilt i{background:radial-gradient(circle at 40% 35%,#fff0a0 0 10%,var(--key) 40%,var(--key-d) 100%);box-shadow:0 2px 0 var(--key-d),0 0 0 2px var(--lo)}
+.sbtn#fx-tilt.on i{background:#fff27a;box-shadow:0 0 8px #fff27a,0 0 0 2px var(--lo)}
+
+/* кнопка-надпись SUPER открывает выбор корпуса */
+button.super{border:0;cursor:pointer}
+button.super:focus-visible{outline:2px solid var(--key);outline-offset:2px}
+
+/* панель выбора корпуса — поверх перегиба */
+.skin-picker{position:absolute;left:4vw;right:4vw;top:47%;z-index:10;display:grid;
+  grid-template-columns:52px 1fr 52px;grid-template-rows:auto auto;gap:8px;align-items:center;
+  padding:10px;border-radius:14px;background:#000000b8;color:#fff;box-shadow:0 6px 24px #0008;
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.skin-picker[hidden]{display:none}
+.sp-arrow{height:52px;border:0;border-radius:12px;background:#ffffff1f;color:#fff;font-size:20px;cursor:pointer}
+.sp-arrow:active{background:#ffffff38}
+.sp-info{text-align:center;display:flex;flex-direction:column;gap:3px}
+.sp-info b{font:800 16px/1.1 system-ui,sans-serif;letter-spacing:.08em}
+.sp-info small{font:600 11px/1 system-ui,sans-serif;opacity:.7;letter-spacing:.06em}
+.sp-done{grid-column:1/4;height:44px;border:0;border-radius:12px;background:var(--key);color:#1a1404;
+  font:800 14px/1 system-ui,sans-serif;letter-spacing:.12em;cursor:pointer}
+.skin-picker button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+
+/* выключенная консоль: LCD без питания — ни пикселей, ни «призраков» */
+.device.off .screen canvas{visibility:hidden}
+
+/* никакой прокрутки, «резинки» и выделения — только консоль */
+html,body{overscroll-behavior:none;position:fixed;inset:0;width:100%}

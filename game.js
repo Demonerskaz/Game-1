@@ -70,6 +70,7 @@ const buzz = ms => { try { navigator.vibrate && navigator.vibrate(ms); } catch {
 
 /* ---------- Состояние ---------- */
 const S = {
+  power: true,
   mode: 'boot',          // boot | menu | play | pause | clear | over
   board: null, piece: null, next: null,
   score: 0, hi: store.get('hi', 0), lines: 0,
@@ -178,6 +179,9 @@ function stepDown() {
 /* ---------- Ввод ---------- */
 function press(key) {
   Sound.init();
+  if (key === 'power') return togglePower();
+  if (!S.power) return;                 // выключенная консоль ни на что не реагирует
+  if (picker.open) return pickerKey(key);
   if (key === 'sound') { Sound.on = !Sound.on; store.set('sound', Sound.on); Sound.beep(1200, 0.05); return; }
   if (key === 'reset') { S.mode = 'menu'; S.piece = null; S.board = null; return; }
 
@@ -216,7 +220,7 @@ function holdStart(key) {
   if (timers[key]) return;
   press(key);
   const rep = REPEAT[key];
-  if (!rep || !(S.mode === 'play' || S.mode === 'menu')) { timers[key] = 'held'; return; }
+  if (!rep || picker.open || !S.power || !(S.mode === 'play' || S.mode === 'menu')) { timers[key] = 'held'; return; }
   const [delay, rate] = rep;
   timers[key] = setTimeout(function loop() {
     if (key === 'down' && S.mode === 'play') { if (S.piece) { stepDown(); S.dropAcc = 0; } }
@@ -316,7 +320,11 @@ addEventListener('resize', resize);
 new ResizeObserver(resize).observe(canvas.parentElement);
 
 // В слое призраков рисуется всё; в слое чернил — только горящее.
+// При включении на мгновение загораются все пиксели и сегменты — как у настоящей консоли.
+const BOOT_FLASH = 0.55;
+const allOn = () => S.mode === 'boot' && S.anim < BOOT_FLASH;
 function pen(on) {
+  if (PASS === 'ink' && allOn()) on = true;
   if (PASS === 'ghost') { ctx.fillStyle = theme().ink; ctx.globalAlpha = 1; return true; }
   const i = penIdx++, v = LEVEL[i] ?? (on ? 1 : 0), target = on ? 1 : 0;
   const nv = v + (target - v) * (target > v ? kOn : kOff);
@@ -393,7 +401,7 @@ function scene(t) {
   let g;
   if (S.mode === 'boot') {
     g = emptyBoard();
-    const n = Math.min(400, Math.floor(S.anim * 160));
+    const n = Math.max(0, Math.min(400, Math.floor((S.anim - BOOT_FLASH - 0.15) * 160)));
     const order = spiral();
     const k = n < 200 ? n : 400 - n;
     for (let i = 0; i < k; i++) { const [r, c] = order[i]; g[r][c] = 1; }
@@ -705,13 +713,86 @@ function drawPresses(m, th, dt) {
   m.globalAlpha = 1;
 }
 
+/* ---------- Питание ---------- */
+const deviceEl = document.querySelector('.device');
+function togglePower() {
+  S.power = !S.power;
+  deviceEl.classList.toggle('off', !S.power);
+  if (S.power) {                        // включение: вспышка всех пикселей, затем заставка
+    S.mode = 'boot'; S.anim = 0; S.piece = null; S.board = null;
+    Sound.seq([880, 1320], 0.06);
+  } else {
+    if (picker.open) closePicker();
+    if (TILT.on) setTilt(false);
+    Sound.beep(440, 0.06);
+  }
+}
+
+/* ---------- Корпуса ----------
+ * Цвета — в skins.css (:root[data-skin=...]). Открыть выбор — нажать на надпись SUPER над экраном.
+ */
+const SKINS = [
+  { id: 'black', name: 'ЧЁРНЫЙ', bar: '#1c1c1d' },
+  { id: 'cream', name: 'БЕЛЫЙ', bar: '#e9e4d3' },
+  { id: 'red', name: 'КРАСНЫЙ', bar: '#c6342b' },
+  { id: 'blue', name: 'СИНИЙ', bar: '#2a5fb4' },
+  { id: 'yellow', name: 'ЖЁЛТЫЙ', bar: '#f3c93a' },
+  { id: 'clear', name: 'ПРОЗРАЧНЫЙ', bar: '#5f9b90' },
+];
+let skinIdx = Math.max(0, SKINS.findIndex(k => k.id === store.get('skin', 'black')));
+function applySkin() {
+  const sk = SKINS[skinIdx];
+  document.documentElement.dataset.skin = sk.id;
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', sk.bar);   // строка состояния — в цвет корпуса
+  document.getElementById('skin-name').textContent = sk.name;
+  document.getElementById('skin-count').textContent = `КОРПУС ${skinIdx + 1} ИЗ ${SKINS.length}`;
+}
+const picker = { open: false, wasPlaying: false };
+const pickerEl = document.getElementById('skin-picker');
+function stepSkin(d) {
+  skinIdx = (skinIdx + d + SKINS.length) % SKINS.length;
+  store.set('skin', SKINS[skinIdx].id); applySkin();
+  buzz(8); Sound.init(); Sound.beep(d > 0 ? 1500 : 1300, 0.02, 0, 0.04);
+}
+function openPicker() {
+  if (!S.power || picker.open) return;
+  picker.open = true; picker.wasPlaying = S.mode === 'play'; S.soft = false;
+  pickerEl.hidden = false; document.getElementById('skin-done').focus({ preventScroll: true });
+}
+function closePicker() { picker.open = false; pickerEl.hidden = true; }
+function pickerKey(key) {   // в режиме выбора кнопки консоли листают корпуса
+  if (key === 'left' || key === 'up') stepSkin(-1);
+  else if (key === 'right' || key === 'down') stepSkin(1);
+  else if (key === 'rotate' || key === 'start') closePicker();
+}
+document.getElementById('skin-open').addEventListener('click', () => { Sound.init(); Sound.beep(1200, 0.03, 0, 0.04); openPicker(); });
+document.getElementById('skin-prev').addEventListener('click', () => stepSkin(-1));
+document.getElementById('skin-next').addEventListener('click', () => stepSkin(1));
+document.getElementById('skin-done').addEventListener('click', closePicker);
+// свайп по корпусу влево/вправо в режиме выбора
+let swipeX = null;
+deviceEl.addEventListener('pointerdown', e => { if (picker.open) swipeX = e.clientX; });
+deviceEl.addEventListener('pointerup', e => {
+  if (picker.open && swipeX != null && Math.abs(e.clientX - swipeX) > 50) stepSkin(e.clientX < swipeX ? 1 : -1);
+  swipeX = null;
+});
+
+// «кирпичики» по бокам экрана: столбики по две клетки, фигурки из квадратиков
+(function bricks() {
+  const L = ['#.','##','.#','..','##','#.','#.','..','.#','##','#.','..','##','.#','..','#.','##','#.','..','##','.#'];
+  const R = ['.#','##','#.','..','#.','##','.#','..','##','##','..','#.','##','#.','..','.#','#.','##','..','#.','##'];
+  const fill = (id, rows) => document.getElementById(id).innerHTML =
+    rows.map(r => [...r].map(c => c === '#' ? '<i></i>' : '<i class="off"></i>').join('')).join('');
+  fill('cl', L); fill('cr', R);
+})();
+
 /* ---------- Игровой цикл ---------- */
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(100, now - last); last = now;
   S.anim += dt / 1000;
-  if (S.mode === 'boot' && S.anim > 2.6) S.mode = 'menu';
-  if (S.mode === 'play' && !S.soft) {
+  if (S.mode === 'boot' && S.anim > 2.6 + BOOT_FLASH + 0.15) S.mode = 'menu';
+  if (S.mode === 'play' && !S.soft && !picker.open) {
     S.dropAcc += dt;
     if (S.dropAcc >= interval()) { S.dropAcc = 0; stepDown(); }
   }
@@ -733,9 +814,10 @@ function frame(now) {
   if (FX.battery) { sat = 0.85; bri += 0.04; }
   const f = con === 1 && bri === 1 && sat === 1 ? '' : `contrast(${con.toFixed(3)}) brightness(${bri.toFixed(3)}) saturate(${sat})`;
   if (screenEl.style.filter !== f) screenEl.style.filter = f;
-  draw(now, dt);
+  if (S.power) draw(now, dt);
   requestAnimationFrame(frame);
 }
 resize();
 applyTheme();
+applySkin();
 requestAnimationFrame(frame);
