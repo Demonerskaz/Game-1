@@ -19,8 +19,7 @@
       <div class="frame">
         <div class="col" id="cl"></div>
         <div class="ring">
-          <button type="button" class="super" id="skin-open" aria-label="Выбрать корпус">SUPER</button>
-          <div class="bevel"><div class="screen"><canvas id="lcd"></canvas></div></div>
+            <div class="bevel"><div class="screen"><canvas id="lcd"></canvas></div></div>
         </div>
         <div class="col" id="cr"></div>
       </div>
@@ -38,13 +37,14 @@
       <button class="sbtn k3" data-key="sound"><i></i><span>SOUND</span></button>
       <button class="sbtn k4" data-key="reset"><i></i><span>RESET</span></button>
       <button class="sbtn k5 fxb" type="button" id="fx-theme" aria-label="Сменить схему экрана"><i></i><span>ЭКРАН</span></button>
-      <button class="sbtn k6 fxb" type="button" id="fx-tilt" aria-label="Эффект наклона экрана"><i></i><span>НАКЛОН</span></button>
+      <button class="sbtn k6 fxb" type="button" id="skin-open" aria-label="Выбрать корпус"><i></i><span>КОРПУС</span></button>
       <div class="dpad">
-        <button class="btn up" data-key="up" aria-label="Вверх"></button>
-        <button class="btn left" data-key="left" aria-label="Влево"></button>
-        <button class="btn right" data-key="right" aria-label="Вправо"></button>
-        <button class="btn down" data-key="down" aria-label="Вниз"></button>
+        <button class="btn up" tabindex="-1" aria-label="Вверх"></button>
+        <button class="btn left" tabindex="-1" aria-label="Влево"></button>
+        <button class="btn right" tabindex="-1" aria-label="Вправо"></button>
+        <button class="btn down" tabindex="-1" aria-label="Вниз"></button>
         <span class="plus" aria-hidden="true">+</span>
+          <div class="dpad-hit" aria-hidden="true"></div>
         <span class="dl l">LEFT</span><span class="dl r">RIGHT</span><span class="dl d">DOWN</span>
       </div>
       <div class="big"><button class="btn rotate" data-key="rotate" aria-label="Поворот"></button><span class="lbl">ROTATE</span></div>

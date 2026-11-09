@@ -236,13 +236,40 @@ function holdEnd(key) {
 
 document.querySelectorAll('[data-key]').forEach(el => {
   const key = el.dataset.key;
-  const down = e => { e.preventDefault(); el.setPointerCapture?.(e.pointerId); el.classList.add('pressed'); buzz(8); holdStart(key); };
+  const down = e => {
+    e.preventDefault(); el.setPointerCapture?.(e.pointerId); el.classList.add('pressed'); buzz(8);
+    if (timers[key]) holdEnd(key);          // прошлое нажатие не отпустилось — сбросить, а не игнорировать новое
+    holdStart(key);
+  };
   const up = e => { e.preventDefault(); el.classList.remove('pressed'); holdEnd(key); };
   el.addEventListener('pointerdown', down);
-  el.addEventListener('pointerup', up);
-  el.addEventListener('pointercancel', up);
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(ev, up);
   el.addEventListener('contextmenu', e => e.preventDefault());
 });
+
+/* Крестовина как у настоящего джойстика: вся область вокруг кнопок — зона нажатия,
+ * направление — по положению пальца относительно центра. Можно вести пальцем, не отрывая. */
+(function dpad() {
+  const pad = document.querySelector('.dpad'), hit = pad.querySelector('.dpad-hit');
+  const btn = d => pad.querySelector('.btn.' + d);
+  const active = new Map();                  // pointerId -> направление
+  const dirAt = e => {
+    const r = pad.getBoundingClientRect(), dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+    if (Math.hypot(dx, dy) < r.width * 0.1) return null;   // мёртвая зона в самом центре
+    return Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down');
+  };
+  const set = (id, d) => {
+    const prev = active.get(id) ?? null;
+    if (prev === d) return;
+    if (prev) { btn(prev).classList.remove('pressed'); holdEnd(prev); }
+    if (d) { btn(d).classList.add('pressed'); buzz(8); if (timers[d]) holdEnd(d); holdStart(d); active.set(id, d); }
+    else active.delete(id);
+  };
+  hit.addEventListener('pointerdown', e => { e.preventDefault(); hit.setPointerCapture?.(e.pointerId); set(e.pointerId, dirAt(e)); });
+  hit.addEventListener('pointermove', e => { if (active.has(e.pointerId) || e.buttons) set(e.pointerId, dirAt(e)); });
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) hit.addEventListener(ev, e => set(e.pointerId, null));
+  hit.addEventListener('contextmenu', e => e.preventDefault());
+})();
 
 const KEYMAP = {
   ArrowLeft: 'left', ArrowRight: 'right', ArrowDown: 'down', ArrowUp: 'up',
@@ -570,7 +597,7 @@ let captionTimer;
 function showCaption(text, ms = 1600) {
   captionEl.textContent = text;
   clearTimeout(captionTimer);
-  captionTimer = setTimeout(() => { captionEl.textContent = 'СТРОЙКА'; }, ms);
+  captionTimer = setTimeout(() => { captionEl.textContent = ''; }, ms);
 }
 function applyTheme(announce) {
   const th = theme();
@@ -587,41 +614,11 @@ document.getElementById('fx-theme').addEventListener('click', () => {
   applyTheme(theme().name);
   buzz(8); Sound.init(); Sound.beep(1600, 0.02, 0, 0.04);
 });
-// нажатие круглых кнопок ЭКРАН и НАКЛОН — та же анимация, что у остальных
+// нажатие круглых кнопок ЭКРАН и КОРПУС — та же анимация, что у остальных
 for (const el of document.querySelectorAll('.fxb')) {
   el.addEventListener('pointerdown', () => el.classList.add('pressed'));
   for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(ev, () => el.classList.remove('pressed'));
 }
-
-const tiltBtn = document.getElementById('fx-tilt');
-function onOrient(e) {
-  if (e.beta == null || e.gamma == null) return;
-  if (TILT.beta0 == null) { TILT.beta0 = e.beta; TILT.gamma0 = e.gamma; }   // текущее положение = нейтраль
-  TILT.got = true;
-  TILT.tb = clamp(e.beta - TILT.beta0, -60, 60);
-  TILT.tg = clamp(e.gamma - TILT.gamma0, -60, 60);
-}
-function setTilt(on, msg) {
-  TILT.on = on; TILT.b = TILT.g = TILT.tb = TILT.tg = 0; TILT.beta0 = TILT.gamma0 = null; TILT.got = false;
-  if (on) addEventListener('deviceorientation', onOrient); else removeEventListener('deviceorientation', onOrient);
-  tiltBtn.classList.toggle('on', on);
-  if (msg) showCaption(msg, on ? 1600 : 2600);
-}
-tiltBtn.addEventListener('click', () => {
-  buzz(8); Sound.init(); Sound.beep(1300, 0.02, 0, 0.04);
-  if (TILT.on) return setTilt(false, 'НАКЛОН ВЫКЛ');
-  const DOE = window.DeviceOrientationEvent;
-  if (!DOE) return setTilt(false, 'НЕТ ДАТЧИКА');
-  const start = () => {
-    setTilt(true, 'ДЕРЖИТЕ РОВНО');
-    // если за 1,5 с не пришло ни одного показания — датчик здесь заблокирован
-    setTimeout(() => { if (TILT.on && !TILT.got) setTilt(false, 'НАКЛОН НЕДОСТУПЕН'); }, 1500);
-  };
-  if (typeof DOE.requestPermission === 'function') {   // iPhone: спросить разрешение по нажатию
-    DOE.requestPermission().then(r => r === 'granted' ? start() : setTilt(false, 'НЕТ РАЗРЕШЕНИЯ'))
-      .catch(() => setTilt(false, 'НАКЛОН НЕДОСТУПЕН'));
-  } else start();
-});
 
 /* ---------- Нажатие пальцем на стекло ----------
  * Давление сжимает слой жидких кристаллов: вокруг пальца расползается мягкое тёмное облако
@@ -723,7 +720,6 @@ function togglePower() {
     Sound.seq([880, 1320], 0.06);
   } else {
     if (picker.open) closePicker();
-    if (TILT.on) setTilt(false);
     Sound.beep(440, 0.06);
   }
 }

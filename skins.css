@@ -35,10 +35,8 @@ html,body{background:var(--body2)}
 .col i{border:1.6px solid var(--print);border-radius:1px;height:100%;width:auto;aspect-ratio:1;justify-self:center;min-height:0;box-sizing:border-box;
   background:radial-gradient(var(--print) 0 20%,transparent 23%)}
 .col i.off{border-color:transparent;background:none}
-/* белая линия — вокруг самого экрана, SUPER разрывает её сверху */
+/* белая линия — вокруг самого экрана */
 .ring{position:relative;flex:1;border:1.5px solid var(--print);border-radius:2px;padding:calc(3 * var(--u))}
-.super{position:absolute;top:-8px;left:50%;transform:translateX(-50%);padding:0 8px;background:var(--body);
-  font:700 12px/16px Arial,system-ui,sans-serif;letter-spacing:.12em;color:var(--print)}
 /* окно экрана — в пропорции картинки игры (0,84), без пустого стекла по бокам */
 .bevel{position:relative;z-index:1;width:100%;aspect-ratio:.86;border:solid var(--bevel);border-width:11px 12px 13px;
   box-shadow:0 0 0 2px #00000066,inset 0 0 0 1px #ffffff10;display:flex;background:var(--bevel)}
@@ -55,11 +53,10 @@ html,body{background:var(--body2)}
 .bottom .sbtn i{width:15px;height:15px;outline:0;background:radial-gradient(circle at 40% 35%,#fff0a0 0 10%,var(--key) 40%,var(--key-d) 100%);
   box-shadow:0 2px 0 var(--key-d),0 0 0 2px var(--lo)}
 .bottom .sbtn span{font:700 8.5px/1 Arial,system-ui,sans-serif;color:var(--print);text-shadow:none;letter-spacing:.02em}
-.sbtn#fx-tilt.on i{background:#fff27a;box-shadow:0 0 8px #fff27a,0 0 0 2px var(--lo)}
 /* маленькие кнопки — ровный ряд */
 .k1{left:13%;top:15%}.k2{left:27.5%;top:15%}.k3{left:42%;top:15%}.k4{left:56.5%;top:15%}.k5{left:71%;top:15%}.k6{left:85.5%;top:15%}
 
-.bottom .dpad{position:absolute;left:14%;top:31%;width:32%;aspect-ratio:1}
+.bottom .dpad{position:absolute;left:5%;top:31%;width:32%;aspect-ratio:1}
 .bottom .dpad::before{display:none}
 .bottom .btn{background:radial-gradient(circle at 40% 34%,#fff0a0 0 8%,var(--key) 34%,var(--key) 76%,var(--key-d) 100%);outline:0;
   box-shadow:0 4px 0 var(--key-d),0 5px 8px #0008,0 0 0 2.5px var(--lo)}
@@ -78,13 +75,9 @@ html,body{background:var(--body2)}
   font:700 calc(8.4 * var(--u))/.95 "Arial Rounded MT Bold","Arial",sans-serif;color:var(--title-fill);-webkit-text-stroke:1.4px var(--print);letter-spacing:.02em}
 .title .r1{padding-left:1.15em}
 .title small{font:400 calc(3.8 * var(--u))/1 Arial,sans-serif;-webkit-text-stroke:0;color:var(--print);margin-left:.5em;vertical-align:.1em}
-/* ЭКРАН и НАКЛОН — такие же жёлтые */
-.sbtn#fx-theme i,.sbtn#fx-tilt i{background:radial-gradient(circle at 40% 35%,#fff0a0 0 10%,var(--key) 40%,var(--key-d) 100%);box-shadow:0 2px 0 var(--key-d),0 0 0 2px var(--lo)}
-.sbtn#fx-tilt.on i{background:#fff27a;box-shadow:0 0 8px #fff27a,0 0 0 2px var(--lo)}
+/* ЭКРАН и КОРПУС — такие же жёлтые */
+.sbtn#fx-theme i,.sbtn#skin-open i{background:radial-gradient(circle at 40% 35%,#fff0a0 0 10%,var(--key) 40%,var(--key-d) 100%);box-shadow:0 2px 0 var(--key-d),0 0 0 2px var(--lo)}
 
-/* кнопка-надпись SUPER открывает выбор корпуса */
-button.super{border:0;cursor:pointer}
-button.super:focus-visible{outline:2px solid var(--key);outline-offset:2px}
 
 /* панель выбора корпуса — поверх перегиба */
 .skin-picker{position:absolute;left:4%;right:4%;top:47%;z-index:10;display:grid;
@@ -106,3 +99,10 @@ button.super:focus-visible{outline:2px solid var(--key);outline-offset:2px}
 
 /* никакой прокрутки, «резинки» и выделения — только консоль */
 html,body{overscroll-behavior:none;position:fixed;inset:0;width:100%}
+
+/* зона нажатия крестовины — шире самих кнопок */
+.dpad-hit{position:absolute;inset:-14%;z-index:2;border-radius:50%;touch-action:none}
+.bottom .dpad .btn{pointer-events:none}
+/* увеличенная зона нажатия у ROTATE и маленьких кнопок */
+.bottom .big .btn::after{content:"";position:absolute;inset:-22%;border-radius:50%}
+.bottom .sbtn{padding:6px 0}
