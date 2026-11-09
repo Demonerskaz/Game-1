@@ -107,16 +107,14 @@ html,body{overscroll-behavior:none;position:fixed;inset:0;width:100%}
 .bottom .big .btn::after{content:"";position:absolute;inset:-22%;border-radius:50%}
 .bottom .sbtn{padding:6px 0}
 
-/* ===== Кнопки видны строго в лоб =====
- * Никакой «боковины» снизу: купол с бликом по центру, вокруг — ровная тёмная щель в корпусе
- * одинаковой ширины со всех сторон. Нажатие — кнопка уходит вглубь (чуть меньше и темнее), а не вниз. */
-.bottom .btn{background:radial-gradient(circle at 50% 46%,#ffe98a 0 5%,var(--key) 34%,var(--key) 72%,var(--key-d) 100%);
-  box-shadow:0 0 0 2.5px var(--lo),0 0 0 4px #00000022,0 0 7px #00000066,inset 0 0 5px #00000038}
-.bottom .btn.pressed{transform:scale(.93);filter:brightness(.9);
-  box-shadow:0 0 0 3.5px var(--lo),0 0 0 5px #00000022,0 0 3px #00000066,inset 0 0 8px #00000055}
-.bottom .sbtn i,.sbtn#fx-theme i,.sbtn#skin-open i,.sbtn#fx-tilt i{
-  background:radial-gradient(circle at 50% 46%,#ffe98a 0 8%,var(--key) 45%,var(--key-d) 100%);
-  box-shadow:0 0 0 2px var(--lo),0 0 4px #00000066,inset 0 0 3px #00000033}
-.bottom .sbtn.pressed i{transform:scale(.88);filter:brightness(.88);box-shadow:0 0 0 3px var(--lo),inset 0 0 5px #00000055}
-.sbtn#fx-tilt.on i{background:radial-gradient(circle at 50% 46%,#ffffff 0 15%,#fff27a 50%,var(--key-d) 100%);
-  box-shadow:0 0 0 2px var(--lo),0 0 9px #fff27a}
+/* ===== Кнопки видны строго в лоб, матовый пластик без бликов =====
+ * Ровный цвет; объём — только лёгкое затемнение у края и тёмная щель в корпусе вокруг,
+ * одинаковые со всех сторон. Нажатие — кнопка уходит вглубь (чуть меньше и темнее). */
+.bottom .btn{background:var(--key);
+  box-shadow:0 0 0 2.5px var(--lo),0 0 0 4px #00000022,inset 0 0 0 1px var(--key-d),inset 0 0 7px #00000030}
+.bottom .btn.pressed{transform:scale(.93);filter:brightness(.88);
+  box-shadow:0 0 0 3.5px var(--lo),0 0 0 5px #00000022,inset 0 0 0 1px var(--key-d),inset 0 0 9px #00000048}
+.bottom .sbtn i,.sbtn#fx-theme i,.sbtn#skin-open i,.sbtn#fx-tilt i{background:var(--key);
+  box-shadow:0 0 0 2px var(--lo),inset 0 0 0 1px var(--key-d),inset 0 0 4px #00000030}
+.bottom .sbtn.pressed i{transform:scale(.88);filter:brightness(.86);box-shadow:0 0 0 3px var(--lo),inset 0 0 0 1px var(--key-d),inset 0 0 5px #00000048}
+.sbtn#fx-tilt.on i{background:#fff27a;box-shadow:0 0 0 2px var(--lo),inset 0 0 0 1px var(--key-d),0 0 8px #fff27a}
