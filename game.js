@@ -4,13 +4,11 @@
 const COLS = 10, ROWS = 20;
 const C = 24;                       // логический размер клетки
 const W = 17.6 * C, H = 21 * C;     // логический размер экрана
-const INK = '#151a12';
-const GHOST = 'rgba(21,26,18,0.09)';
 const LINES_PER_SPEED = 20;  // линий до следующей скорости (как в китайских Brick Game)
 const MAX_SPEED = 10;        // скорость не выше 10, как на табло консоли
 
 const canvas = document.getElementById('lcd');
-const ctx = canvas.getContext('2d');
+
 const led = document.getElementById('led');
 
 /* ---------- Фигуры ---------- */
@@ -37,11 +35,28 @@ const Sound = {
   init() { if (!this.ac) { try { this.ac = new (window.AudioContext || window.webkitAudioContext)(); } catch {} } if (this.ac && this.ac.state === 'suspended') this.ac.resume(); },
   beep(freq, dur = 0.05, when = 0, vol = 0.08) {
     if (!this.on || !this.ac) return;
-    const t = this.ac.currentTime + when;
-    const o = this.ac.createOscillator(), g = this.ac.createGain();
+    const ac = this.ac, t = ac.currentTime + when;
+    const piezo = theme().piezo, weak = FX.battery;
+    if (weak) { freq *= 0.92 + Math.random() * 0.05; vol *= 0.45; }
+    const o = ac.createOscillator(), g = ac.createGain();
     o.type = 'square'; o.frequency.value = freq;
+    if (weak) o.detune.setValueAtTime(-30 + Math.random() * 60, t);
     g.gain.setValueAtTime(vol, t); g.gain.setValueAtTime(0, t + dur);
-    o.connect(g).connect(this.ac.destination); o.start(t); o.stop(t + dur + 0.02);
+    let node = o;
+    if (piezo) {
+      // пьезопищалка: срезаны низы, резонанс около 3 кГц — тонкий «жестяной» писк
+      const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1200;
+      const pk = ac.createBiquadFilter(); pk.type = 'peaking'; pk.frequency.value = 3100; pk.Q.value = 3; pk.gain.value = 12;
+      node = node.connect(hp).connect(pk);
+      g.gain.setValueAtTime(vol * 0.7, t);
+    }
+    if (weak) {
+      // «хрип» севшей батарейки — грубое ограничение формы
+      const ws = ac.createWaveShaper(), curve = new Float32Array(256);
+      for (let i = 0; i < 256; i++) { const x = i / 128 - 1; curve[i] = Math.max(-0.35, Math.min(0.35, x * 3)) + (Math.random() - 0.5) * 0.08; }
+      ws.curve = curve; node = node.connect(ws);
+    }
+    node.connect(g).connect(ac.destination); o.start(t); o.stop(t + dur + 0.02);
   },
   seq(notes, step = 0.08) { notes.forEach((f, i) => f && this.beep(f, step * 0.9, i * step)); },
   move() { this.beep(1400, 0.015, 0, 0.04); },
@@ -237,25 +252,74 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => { const k = KEYMAP[e.key] || KEYMAP[e.key.toLowerCase?.()]; if (k) holdEnd(k); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && S.mode === 'play') S.mode = 'pause'; });
 
+/* ---------- Темы экрана ----------
+ * Чтобы добавить новую схему — допишите объект в THEMES. Кнопка «ЭКРАН» перебирает их по кругу.
+ *  lcd      — цвет стекла/подложки        ink      — цвет «чернил» горящих пикселей
+ *  inkAlpha — плотность чернил (1 = сплошные, меньше — сквозь них видна подложка)
+ *  ghost    — насколько видны негорящие пиксели и сегменты
+ *  shadow   — сила тени пикселей на подложке (0 — без тени)
+ *  tauOn/tauOff — инерция пикселя при зажигании/гашении, мс (0 — мгновенно, шлейф от падающих фигур)
+ *  grain, glare, vignette — зерно подложки, блик стекла, затемнение к краям (0..1)
+ *  piezo    — «жестяной» звук пьезопищалки вместо чистого тона
+ */
+const THEMES = [
+  { id: 'clean', name: 'КАК БЫЛО', lcd: '#c3c8b4', ink: '#151a12', inkAlpha: 1, ghost: 0.09,
+    shadow: 0, tauOn: 0, tauOff: 0, grain: 0, glare: 0, vignette: 0, piezo: false },
+  { id: 'stn', name: 'СТАРЫЙ LCD', lcd: '#b4bba0', ink: '#1e2a2b', inkAlpha: 0.86, ghost: 0.075,
+    shadow: 0.22, tauOn: 40, tauOff: 110, grain: 0.55, glare: 0.9, vignette: 0.85, piezo: true },
+  { id: 'olive', name: 'ЖЁЛТО-ЗЕЛЁНЫЙ', lcd: '#a9ae6c', ink: '#262d16', inkAlpha: 0.84, ghost: 0.08,
+    shadow: 0.2, tauOn: 45, tauOff: 130, grain: 0.6, glare: 0.8, vignette: 0.9, piezo: true },
+  { id: 'grey', name: 'ХОЛОДНЫЙ СЕРЫЙ', lcd: '#b3b9b8', ink: '#1b2231', inkAlpha: 0.88, ghost: 0.07,
+    shadow: 0.24, tauOn: 35, tauOff: 100, grain: 0.45, glare: 1, vignette: 0.8, piezo: true },
+];
+const FX = {
+  theme: Math.max(0, THEMES.findIndex(t => t.id === store.get('theme', 'stn'))),
+  contrast: store.get('contrast', 0.5),   // 0..1, колёсико контрастности
+  battery: store.get('battery', false),   // режим «садятся батарейки»
+};
+const theme = () => THEMES[FX.theme];
+
 /* ---------- Отрисовка ---------- */
+// Сцена рисуется в два слоя: «призраки» (всё, что может гореть) и «чернила» (что горит сейчас).
+// У каждого элемента (клетка, сегмент, надпись) своя яркость, которая тянется к «горит/не горит»
+// с инерцией — отсюда шлейф, как у медленной STN-матрицы.
+const layer = () => { const c = document.createElement('canvas'); return [c, c.getContext('2d')]; };
+const [inkCv, inkCtx] = layer(), [ghostCv, ghostCtx] = layer();
+let ctx = inkCtx, PASS = 'ink', SCALE = 1, ghostDirty = true;
+const LEVEL = [];            // яркость элементов по порядку отрисовки
+let penIdx = 0, kOn = 1, kOff = 1;
+
 function resize() {
   const box = canvas.parentElement.getBoundingClientRect();
   const pad = 12;
-  const scale = Math.min((box.width - pad) / W, (box.height - pad) / H);
+  const scale = Math.max(0.1, Math.min((box.width - pad) / W, (box.height - pad) / H));
   const dpr = devicePixelRatio || 1;
   canvas.style.width = W * scale + 'px';
   canvas.style.height = H * scale + 'px';
-  canvas.width = Math.round(W * scale * dpr);
-  canvas.height = Math.round(H * scale * dpr);
-  ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
+  const pw = Math.round(W * scale * dpr), ph = Math.round(H * scale * dpr);
+  SCALE = scale * dpr;
+  for (const cv of [canvas, inkCv, ghostCv]) { cv.width = pw; cv.height = ph; }
+  for (const c of [inkCtx, ghostCtx]) c.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+  ghostDirty = true;
 }
 addEventListener('resize', resize);
 new ResizeObserver(resize).observe(canvas.parentElement);
 
+// В слое призраков рисуется всё; в слое чернил — только горящее.
+function pen(on) {
+  if (PASS === 'ghost') { ctx.fillStyle = theme().ink; ctx.globalAlpha = 1; return true; }
+  const i = penIdx++, v = LEVEL[i] ?? (on ? 1 : 0), target = on ? 1 : 0;
+  const nv = v + (target - v) * (target > v ? kOn : kOff);
+  LEVEL[i] = Math.abs(nv - target) < 0.004 ? target : nv;
+  if (LEVEL[i] <= 0) return false;
+  ctx.fillStyle = theme().ink; ctx.globalAlpha = LEVEL[i];
+  return true;
+}
+
 // Классический «кирпичный» пиксель: рамка + квадрат внутри
 function cell(px, py, on, size = C) {
+  if (!pen(on)) return;
   const s = size, b = s * 0.1, g = s * 0.22;
-  ctx.fillStyle = on ? INK : GHOST;
   ctx.fillRect(px + b, py + b, s - 2 * b, b);
   ctx.fillRect(px + b, py + s - 2 * b, s - 2 * b, b);
   ctx.fillRect(px + b, py + 2 * b, b, s - 4 * b);
@@ -273,7 +337,7 @@ function digit(x, y, w, h, d) {
     f: [x, y + t * 0.7, t, h / 2 - t * 1.1], b: [x + w - t, y + t * 0.7, t, h / 2 - t * 1.1],
     e: [x, y + h / 2 + t * 0.4, t, h / 2 - t * 1.1], c: [x + w - t, y + h / 2 + t * 0.4, t, h / 2 - t * 1.1],
   };
-  for (const k in segs) { ctx.fillStyle = lit.includes(k) ? INK : GHOST; ctx.fillRect(...segs[k]); }
+  for (const k in segs) if (pen(lit.includes(k))) ctx.fillRect(...segs[k]);
 }
 function number(x, y, n, len, dw = 0.62 * C, dh = 1.15 * C, gap = 0.24 * C) {
   const s = String(Math.max(0, Math.floor(n))).slice(-len);
@@ -283,7 +347,7 @@ function number(x, y, n, len, dw = 0.62 * C, dh = 1.15 * C, gap = 0.24 * C) {
   }
 }
 function label(text, x, y, on = true, size = 0.5) {
-  ctx.fillStyle = on ? INK : GHOST;
+  if (!pen(on)) return;
   ctx.font = `700 ${size * C}px ui-monospace,Menlo,Consolas,monospace`;
   ctx.textBaseline = 'top';
   ctx.fillText(text, x, y);
@@ -293,7 +357,6 @@ const GX = 0.5 * C, GY = 0.5 * C;   // начало стакана
 const PX = 11.4 * C;                // начало боковой панели
 
 function grid() {
-  // что горит в каждой клетке
   const g = emptyBoard();
   if (S.board) S.board.forEach((row, r) => row.forEach((v, c) => g[r][c] = v));
   if (S.piece) {
@@ -311,15 +374,14 @@ const MENU_ART = [
   '###.##.###', '####.#####', '#####.####', '###.######', '####.#####',
 ];
 
-function draw(t) {
-  ctx.clearRect(0, 0, W, H);
-  // рамка стакана
-  ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
-  ctx.strokeRect(GX - 4, GY - 4, COLS * C + 8, ROWS * C + 8);
+function scene(t) {
+  if (PASS === 'ink') {
+    ctx.globalAlpha = 1; ctx.strokeStyle = theme().ink; ctx.lineWidth = 1.5;
+    ctx.strokeRect(GX - 4, GY - 4, COLS * C + 8, ROWS * C + 8);
+  }
 
   let g;
   if (S.mode === 'boot') {
-    // спиральная «прокрутка» при включении
     g = emptyBoard();
     const n = Math.min(400, Math.floor(S.anim * 160));
     const order = spiral();
@@ -329,7 +391,6 @@ function draw(t) {
     g = MENU_ART.map(row => [...row].map(ch => ch === '#' ? 1 : 0));
     if (Math.floor(t / 400) % 2) for (let r = 2; r < 4; r++) for (let c = 0; c < COLS; c++) g[r][c] = 0;
   } else if (S.mode === 'over') {
-    // «шторка»: снизу вверх заполняется, сверху вниз очищается
     g = grid();
     const k = Math.floor(S.anim * 30);
     for (let i = 0; i < Math.min(k, ROWS); i++) g[ROWS - 1 - i].fill(1);
@@ -367,7 +428,6 @@ function draw(t) {
   label('LINES', PX, 11 * C);
   number(PX, 11.65 * C, S.mode === 'menu' || S.mode === 'boot' ? 0 : S.lines, 4);
 
-  // индикаторы
   const paused = S.mode === 'pause' && Math.floor(t / 500) % 2 === 0;
   label('PAUSE', PX, 14 * C, paused, 0.6);
   cup(PX + 3.7 * C, 13.85 * C, paused);
@@ -377,21 +437,21 @@ function draw(t) {
   label('GAME', PX, 17.2 * C, S.mode === 'over', 0.6);
   label('OVER', PX + 2.2 * C, 17.2 * C, S.mode === 'over', 0.6);
 
-  if (S.mode === 'menu') {
-    const hint = Math.floor(t / 600) % 2 === 0;
-    label('◀▶ SPEED', PX, 18.7 * C, true, 0.42);
-    label('▲▼ LEVEL', PX, 19.3 * C, true, 0.42);
-    label('START', PX, 19.9 * C, hint, 0.42);
+  if (PASS === 'ink') {   // подсказки меню — без «призраков», но с тем же затуханием
+    const menu = S.mode === 'menu', hint = Math.floor(t / 600) % 2 === 0;
+    label('◀▶ SPEED', PX, 18.7 * C, menu, 0.42);
+    label('▲▼ LEVEL', PX, 19.3 * C, menu, 0.42);
+    label('START', PX, 19.9 * C, menu && hint, 0.42);
   }
 }
 function cup(x, y, on) {
-  ctx.fillStyle = on ? INK : GHOST;
+  if (!pen(on)) return;
   ctx.fillRect(x, y, 0.8 * C, 0.55 * C);
   ctx.fillRect(x + 0.8 * C, y + 0.1 * C, 0.2 * C, 0.3 * C);
   ctx.fillRect(x - 0.1 * C, y + 0.6 * C, 1 * C, 0.1 * C);
 }
 function note(x, y, on) {
-  ctx.fillStyle = on ? INK : GHOST;
+  if (!pen(on)) return;
   ctx.beginPath(); ctx.ellipse(x + 0.25 * C, y + 0.75 * C, 0.25 * C, 0.18 * C, -0.4, 0, 7); ctx.fill();
   ctx.fillRect(x + 0.42 * C, y, 0.08 * C, 0.75 * C);
   ctx.fillRect(x + 0.42 * C, y, 0.4 * C, 0.12 * C);
@@ -409,6 +469,112 @@ function spiral() {
   return (_spiral = out);
 }
 
+// Итоговая яркость с учётом колёсика контрастности и батареек
+function levels(t) {
+  const th = theme(), c = FX.contrast;
+  let ink = th.inkAlpha * (0.4 + 0.6 * Math.min(1, c * 2));
+  let ghost = th.ghost * Math.pow(0.3 + 1.4 * c, 2);
+  if (FX.battery) {
+    ink *= 0.5 + 0.04 * Math.sin(t / 900) + 0.03 * Math.sin(t / 137);   // бледно и слегка «гуляет»
+    ghost *= 0.45;
+  }
+  return { ink: Math.min(1, ink), ghost: Math.min(0.6, ghost) };
+}
+
+function draw(t, dt) {
+  const th = theme();
+  if (ghostDirty) {
+    ctx = ghostCtx; PASS = 'ghost';
+    ghostCtx.save(); ghostCtx.setTransform(1, 0, 0, 1, 0, 0); ghostCtx.clearRect(0, 0, ghostCv.width, ghostCv.height); ghostCtx.restore();
+    scene(t);
+    ghostDirty = false;
+  }
+  // Инерция пикселей: гаснут медленнее, чем зажигаются
+  kOff = th.tauOff ? 1 - Math.exp(-dt / th.tauOff) : 1;
+  kOn = th.tauOn ? 1 - Math.exp(-dt / th.tauOn) : 1;
+  ctx = inkCtx; PASS = 'ink'; penIdx = 0;
+  inkCtx.save(); inkCtx.setTransform(1, 0, 0, 1, 0, 0); inkCtx.clearRect(0, 0, inkCv.width, inkCv.height); inkCtx.restore();
+  scene(t);
+  inkCtx.globalAlpha = 1;
+
+  const lv = levels(t);
+  const m = canvas.getContext('2d');
+  m.setTransform(1, 0, 0, 1, 0, 0);
+  m.clearRect(0, 0, canvas.width, canvas.height);
+  m.globalAlpha = lv.ghost; m.drawImage(ghostCv, 0, 0);
+  if (th.shadow) {   // тень пикселей на отражающей подложке (две копии — мягкий край)
+    const o = 0.13 * C * SCALE;
+    m.globalAlpha = th.shadow * lv.ink * 0.6; m.drawImage(inkCv, o, o);
+    m.globalAlpha = th.shadow * lv.ink * 0.4; m.drawImage(inkCv, o * 1.5, o * 1.5);
+  }
+  m.globalAlpha = lv.ink; m.drawImage(inkCv, 0, 0);
+  m.globalAlpha = 1;
+}
+
+/* ---------- Стекло, зерно, кнопки экрана ---------- */
+const screenEl = canvas.parentElement;
+const captionEl = document.querySelector('.bezel-caption');
+(function makeGrain() {   // зерно и неровность отражающей подложки — генерируется один раз
+  try {
+    const n = 160, cv = document.createElement('canvas'); cv.width = cv.height = n;
+    const c = cv.getContext('2d'), img = c.createImageData(n, n);
+    for (let i = 0; i < n * n; i++) {
+      const v = Math.random() < 0.5 ? 0 : 255;
+      img.data.set([v, v, v, Math.random() * 38], i * 4);
+    }
+    c.putImageData(img, 0, 0);
+    for (let i = 0; i < 14; i++) {   // мягкие пятна
+      const x = Math.random() * n, y = Math.random() * n, r = 20 + Math.random() * 40;
+      const gr = c.createRadialGradient(x, y, 0, x, y, r);
+      const dark = Math.random() < 0.5;
+      gr.addColorStop(0, dark ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.07)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = gr;
+      // рисуем пятно со сдвигами на размер плитки — текстура повторяется без швов
+      for (const dx of [-n, 0, n]) for (const dy of [-n, 0, n]) {
+        c.save(); c.translate(dx, dy); c.fillRect(-dx, -dy, n, n); c.restore();
+      }
+    }
+    screenEl.style.setProperty('--grain-img', `url(${cv.toDataURL()})`);
+  } catch {}
+})();
+
+let captionTimer;
+function applyTheme(announce) {
+  const th = theme();
+  screenEl.style.setProperty('--lcd', th.lcd);
+  screenEl.style.setProperty('--grain', th.grain);
+  screenEl.style.setProperty('--glare', th.glare);
+  screenEl.style.setProperty('--vignette', th.vignette);
+  screenEl.classList.toggle('battery', FX.battery);
+  document.getElementById('fx-battery').classList.toggle('on', FX.battery);
+  document.getElementById('fx-theme-n').textContent = `${FX.theme + 1}/${THEMES.length}`;
+  ghostDirty = true;
+  if (announce) {
+    captionEl.textContent = announce;
+    clearTimeout(captionTimer);
+    captionTimer = setTimeout(() => { captionEl.textContent = 'СТРОЙКА'; }, 1600);
+  }
+}
+document.getElementById('fx-theme').addEventListener('click', () => {
+  FX.theme = (FX.theme + 1) % THEMES.length;
+  store.set('theme', theme().id);
+  applyTheme(theme().name);
+  buzz(8); Sound.init(); Sound.beep(1600, 0.02, 0, 0.04);
+});
+document.getElementById('fx-battery').addEventListener('click', () => {
+  FX.battery = !FX.battery; store.set('battery', FX.battery);
+  applyTheme(FX.battery ? 'БАТАРЕЙКИ САДЯТСЯ' : 'НОВЫЕ БАТАРЕЙКИ');
+  buzz(8); Sound.init(); Sound.beep(900, 0.04, 0, 0.05);
+});
+const contrastEl = document.getElementById('fx-contrast');
+contrastEl.value = Math.round(FX.contrast * 100);
+contrastEl.addEventListener('input', () => {
+  FX.contrast = contrastEl.value / 100; store.set('contrast', FX.contrast);
+});
+for (const el of document.querySelectorAll('.fx button, .fx input')) {
+  el.addEventListener('pointerdown', e => e.stopPropagation());
+}
+
 /* ---------- Игровой цикл ---------- */
 let last = performance.now();
 function frame(now) {
@@ -421,8 +587,10 @@ function frame(now) {
   }
   if (S.mode === 'clear' && S.anim > 0.48) finishClear();
   led.classList.toggle('on', S.mode !== 'pause');
-  draw(now);
+  led.classList.toggle('weak', FX.battery);
+  draw(now, dt);
   requestAnimationFrame(frame);
 }
 resize();
+applyTheme();
 requestAnimationFrame(frame);

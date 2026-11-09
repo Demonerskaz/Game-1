@@ -43,3 +43,34 @@ html,body{margin:0;height:100%;background:var(--body2);overflow:hidden;
 .big{display:flex;flex-direction:column;align-items:center;gap:10px}
 .big .btn{position:relative;width:min(30vw,128px);aspect-ratio:1;height:auto}
 .big .lbl{color:var(--label);font-size:10px;font-weight:700;letter-spacing:.15em}
+
+/* ---- маленькие кнопки экрана ---- */
+.bezel-top{gap:10px}
+.brand{letter-spacing:.18em;white-space:nowrap}
+.led.on.weak{background:#a8382f;box-shadow:0 0 3px #a8382f}
+.fx{display:flex;align-items:center;gap:6px;min-width:0}
+.fx button{font:inherit;font-size:9px;letter-spacing:.08em;color:var(--label);background:#2a2c2e;border:0;
+  border-radius:9px;padding:4px 7px;box-shadow:0 2px 0 #000,inset 0 1px 0 #ffffff14;cursor:pointer;white-space:nowrap}
+.fx button:active{transform:translateY(2px);box-shadow:0 0 0 #000}
+.fx button b{font-weight:700;opacity:.6}
+.fx button.on{color:#ffb35c}
+.fx button:focus-visible,.fx input:focus-visible{outline:2px solid #ffb35c;outline-offset:2px}
+.contrast{display:flex;align-items:center;gap:4px;color:var(--label);font-size:11px}
+.contrast input{width:58px;height:14px;margin:0;-webkit-appearance:none;appearance:none;background:transparent}
+.contrast input::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:repeating-linear-gradient(90deg,#3a3d40 0 2px,#202224 2px 4px)}
+.contrast input::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;margin-top:-4px;border-radius:50%;background:#8d9094;box-shadow:0 1px 0 #000}
+.contrast input::-moz-range-track{height:4px;border-radius:2px;background:#3a3d40}
+.contrast input::-moz-range-thumb{width:12px;height:12px;border:0;border-radius:50%;background:#8d9094}
+
+/* ---- стекло LCD: подложка, зерно, блик, виньетка ---- */
+.screen{position:relative;overflow:hidden;background:var(--lcd);transition:background-color .3s}
+.screen::before,.screen::after{content:"";position:absolute;inset:0;pointer-events:none}
+.screen::before{background-image:var(--grain-img);background-size:160px 160px;opacity:var(--grain,0);mix-blend-mode:multiply}
+.screen::after{z-index:2;
+  background:
+    linear-gradient(118deg,transparent 18%,rgba(255,255,255,calc(.16*var(--glare,0))) 30%,transparent 44%),
+    linear-gradient(118deg,transparent 52%,rgba(255,255,255,calc(.07*var(--glare,0))) 58%,transparent 64%),
+    radial-gradient(ellipse at 50% 45%,transparent 55%,rgba(20,24,16,calc(.28*var(--vignette,0))) 100%)}
+.screen canvas{position:relative;z-index:1}
+.screen.battery{filter:saturate(.85) brightness(1.04)}
+@media (prefers-reduced-motion:reduce){.screen{transition:none}}

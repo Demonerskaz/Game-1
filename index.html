@@ -13,7 +13,15 @@
 <body>
 <div class="device">
   <div class="bezel">
-    <div class="bezel-top"><span class="led" id="led"></span><span class="brand">BRICK&nbsp;LCD</span></div>
+    <div class="bezel-top">
+      <span class="led" id="led"></span>
+      <div class="fx">
+        <button type="button" id="fx-theme" aria-label="Сменить схему экрана">ЭКРАН <b id="fx-theme-n">1/4</b></button>
+        <button type="button" id="fx-battery" aria-label="Режим севших батареек">БАТ</button>
+        <label class="contrast" for="fx-contrast" title="Контрастность"><span aria-hidden="true">◐</span><input type="range" id="fx-contrast" min="0" max="100" aria-label="Контрастность"></label>
+      </div>
+      <span class="brand">BRICK&nbsp;LCD</span>
+    </div>
     <div class="screen"><canvas id="lcd"></canvas></div>
     <div class="bezel-caption">СТРОЙКА</div>
   </div>
