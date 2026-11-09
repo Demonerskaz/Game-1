@@ -285,6 +285,8 @@ const theme = () => THEMES[FX.theme];
 // Работает только там, где браузер даёт датчик ориентации (на iPhone — по разрешению, через HTTPS).
 const TILT = { on: false, got: false, beta0: null, gamma0: null, tb: 0, tg: 0, b: 0, g: 0 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+// Верхний край телефона отклонился от вас (beta уменьшилась) — глаза ниже оси экрана, «смотрим снизу».
+const viewAngle = () => clamp(-TILT.b / 30, -1.5, 1.5);
 
 /* ---------- Отрисовка ---------- */
 // Сцена рисуется в два слоя: «призраки» (всё, что может гореть) и «чернила» (что горит сейчас).
@@ -484,10 +486,10 @@ function levels(t) {
   let ghost = th.ghost * Math.pow(0.3 + 1.4 * c, 2);
   const k = TILT.on ? th.tilt : 0;
   if (k) {
-    const v = clamp(TILT.b / 30, -1.5, 1.5);   // вперёд/назад
-    const h = Math.min(1, Math.abs(TILT.g) / 40); // вбок
-    if (v < 0) { ink *= 1 - 0.55 * k * Math.min(1, -v); ghost *= Math.max(0.1, 1 + 0.8 * v * k); }
-    else { ghost *= 1 + 2.4 * v * k; }
+    const v = viewAngle();                         // >0 — смотрим снизу, <0 — сверху
+    const h = Math.min(1, Math.abs(TILT.g) / 40);  // вбок
+    if (v > 0) { ink = Math.min(1, ink * (1 + 0.12 * v * k)); ghost *= 1 + 1.2 * v * k; }    // снизу: сочнее
+    else { ink *= 1 - 0.55 * k * Math.min(1, -v); ghost *= Math.max(0.1, 1 + 0.8 * v * k); } // сверху: выцветает
     ink *= 1 - 0.25 * k * h;
   }
   if (FX.battery) {
@@ -713,6 +715,16 @@ function frame(now) {
   const gk = TILT.on ? theme().tilt : 0;   // блик «едет» по стеклу при наклоне
   screenEl.style.setProperty('--tx', (gk * clamp(TILT.g, -40, 40) * 1.2).toFixed(1) + 'px');
   screenEl.style.setProperty('--ty', (gk * clamp(-TILT.b, -40, 40) * 1.2).toFixed(1) + 'px');
+  // яркость и контраст всего стекла: снизу — ярче и контрастнее, сверху — тусклее и площе
+  let con = 1, bri = 1, sat = 1;
+  if (gk) {
+    const v = viewAngle();
+    if (v > 0) { con += 0.18 * v * gk; bri += 0.05 * v * gk; }
+    else { con -= 0.15 * Math.min(1, -v) * gk; bri -= 0.03 * Math.min(1, -v) * gk; }
+  }
+  if (FX.battery) { sat = 0.85; bri += 0.04; }
+  const f = con === 1 && bri === 1 && sat === 1 ? '' : `contrast(${con.toFixed(3)}) brightness(${bri.toFixed(3)}) saturate(${sat})`;
+  if (screenEl.style.filter !== f) screenEl.style.filter = f;
   draw(now, dt);
   requestAnimationFrame(frame);
 }
